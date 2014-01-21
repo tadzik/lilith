@@ -1,0 +1,28 @@
+#!/usr/bin/env perl
+use lib 'lib';
+use 5.010;
+use strict;
+use warnings;
+use Getopt::Long;
+use MIDI;
+use Lilith;
+
+my ($keep, $key, $tempo) = 0;
+
+GetOptions("key=s" => \$key,
+           "tempo=s" => \$tempo,
+           "keep-ly" => \$keep,
+) or do { say "Error processing command-line arguments: $!"; exit 1 };
+my %opts;
+$opts{keep} = $keep;
+$opts{key} = $key if $key;
+$opts{tempo} = $tempo if $tempo;
+
+my $o = MIDI::Opus->new({ from_file => ($ARGV[0] or do {
+    say "Usage: $0 <midi file>";
+    exit 1;
+}) });
+my $track = ($o->tracks)[0];
+
+$ENV{VERBOSE} = 1;
+Lilith::generate_pdf("output", \%opts, $track->events);
