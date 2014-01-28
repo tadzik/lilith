@@ -7,15 +7,17 @@ use Getopt::Long;
 use MIDI;
 use Lilith;
 
-my ($keep, $key, $tempo) = 0;
+my ($keep, $key, $clef, $tempo) = 0;
 
 GetOptions("key=s" => \$key,
            "tempo=s" => \$tempo,
+           "clef=s" => \$clef,
            "keep-ly" => \$keep,
 ) or do { say "Error processing command-line arguments: $!"; exit 1 };
 my %opts;
 $opts{keep} = $keep;
 $opts{key} = $key if $key;
+$opts{clef} = $clef if $clef;
 $opts{tempo} = $tempo if $tempo;
 
 my $o = MIDI::Opus->new({ from_file => ($ARGV[0] or do {

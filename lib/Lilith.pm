@@ -69,8 +69,12 @@ sub get_notes {
         my $ratio = $_->{duration} / $base;
         if ($ratio < 0.75) { # more 1/2 than 1
             $_->{type} = 8;
-        } else {
+        } elsif ($ratio < 1.5) {
             $_->{type} = 4;
+        } elsif ($ratio < 2.5) {
+            $_->{type} = 2;
+        } else {
+            $_->{type} = '2.';
         }
         $_->{octave} = idx2octave($_->{idx});
         $_->{sound} = idx2sound($_->{idx});
@@ -93,7 +97,21 @@ sub get_notes {
         }
         push @withrests, $notes[$i];
     }
-    return @withrests;
+    # let's glue chords together
+    my $threshold = $base / 16; # XXX this could be smarter
+    my @endresult = [shift @withrests];
+    while (@withrests) {
+        my $n = shift @withrests;
+        my @chord = @{pop @endresult};
+        if (abs($n->{start} - $chord[0]->{start}) < $threshold) {
+            push @chord, $n;
+            push @endresult, \@chord;
+        } else {
+            push @endresult, \@chord;
+            push @endresult, [$n];
+        }
+    }
+    return @endresult;
 }
 
 sub key_signature {
@@ -118,23 +136,40 @@ sub key_signature {
 
 sub note_to_lilypond {
     my $n = shift;
-    sprintf "%s%s%d", $n->{sound}, $n->{octave}, $n->{type};
+    sprintf "%s%s%s", $n->{sound}, $n->{octave}, $n->{type};
+}
+
+sub chord_to_lilypond {
+    my $n = shift;
+    my @notes = @$n;
+    if (@notes > 1) { # chord
+        sprintf "<< %s >>", join(" ", map({ note_to_lilypond($_) } @notes))
+    } else {
+        note_to_lilypond $notes[0];
+    }
 }
 
 sub to_lilypond {
-    my ($key, $time, @notes) = @_;
+    my ($key, $clef, $time, @notes) = @_;
     sprintf q[\\version "2.16.2" {
     %s
+    \clef "%s"
     \time %s
     %s
-}], key_signature($key), $time, join " ", map { note_to_lilypond($_) } @notes;
+}], key_signature($key), $clef, $time, join " ", map { chord_to_lilypond($_) } @notes;
 }
 
 # in full notes
 sub total_length {
     my $ret = 0;
     for (@_) {
-        $ret += 1 / $_->{type};
+        for (@$_) {
+            my $part += 1 / int($_->{type});
+            if ($_->{type} =~ /\.$/) {
+                $part *= 1.5;
+            }
+            $ret += $part;
+        }
     }
     return $ret
 }
@@ -162,9 +197,10 @@ sub generate {
     $ENV{VERBOSE} and warn "Guessed key: $key\n";
     my @notes = get_notes(@events);
     my $tempo = $opts->{tempo} // guess_tempo(@notes);
+    my $clef = $opts->{clef} // "treble"; # XXX FIXME
     $ENV{VERBOSE} and warn "Guessed tempo: $tempo\n";
 
-    return to_lilypond($key, $tempo, @notes);
+    return to_lilypond($key, $clef, $tempo, @notes);
 }
 
 sub generate_pdf {
@@ -175,7 +211,11 @@ sub generate_pdf {
     close $fh;
     warn "Running lilypond\n";
     system("lilypond -s -o $pdffile $filename");
-    unlink $filename unless $opts->{keep};
+    if ($opts->{keep}) {
+        warn "File saved as $filename\n";
+    } else {
+        unlink $filename
+    }
 }
 
 1;
