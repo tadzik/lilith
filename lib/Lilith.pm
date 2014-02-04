@@ -150,13 +150,30 @@ sub chord_to_lilypond {
 }
 
 sub to_lilypond {
-    my ($key, $clef, $time, @notes) = @_;
-    sprintf q[\\version "2.16.2" {
+    my ($key, $time, $upper, $lower) = @_;
+    $key = key_signature($key);
+    sprintf q[\\version "2.16.2"
+upper = {
     %s
-    \clef "%s"
-    \time %s
+    \clef "treble"
     %s
-}], key_signature($key), $clef, $time, join " ", map { chord_to_lilypond($_) } @notes;
+}
+lower = {
+    %s
+    \clef "bass"
+    %s
+}
+\score {
+    \new PianoStaff <<
+        \time %s
+        \new Staff = "upper" \upper
+        \new Staff = "lower" \lower
+    >>
+    \layout { }
+    \midi { }
+}], $key, join(" ", map { chord_to_lilypond($_) } @$upper),
+    $key, join(" ", map { chord_to_lilypond($_) } @$lower),
+    $time;
 }
 
 # in full notes
@@ -197,10 +214,18 @@ sub generate {
     $ENV{VERBOSE} and warn "Guessed key: $key\n";
     my @notes = get_notes(@events);
     my $tempo = $opts->{tempo} // guess_tempo(@notes);
-    my $clef = $opts->{clef} // "treble"; # XXX FIXME
     $ENV{VERBOSE} and warn "Guessed tempo: $tempo\n";
 
-    return to_lilypond($key, $clef, $tempo, @notes);
+    my @lower;
+    for (@notes) {
+        push @lower, [{
+            sound => 'r',
+            type => $_->[0]{type},
+            octave => ''
+        }]
+    }
+
+    return to_lilypond($key, $tempo, \@notes, \@lower);
 }
 
 sub generate_pdf {
