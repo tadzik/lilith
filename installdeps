@@ -1,0 +1,2 @@
+#!/bin/sh
+wget http://cpanmin.us -O - | perl - -L extlib Try::Tiny MIDI Gtk2
