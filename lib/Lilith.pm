@@ -170,7 +170,6 @@ lower = {
         \new Staff = "lower" \lower
     >>
     \layout { }
-    \midi { }
 }], $key, join(" ", map { chord_to_lilypond($_) } @$upper),
     $key, join(" ", map { chord_to_lilypond($_) } @$lower),
     $time;
