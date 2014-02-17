@@ -2,10 +2,11 @@
 use 5.010;
 use strict;
 use warnings;
+use lib 'extlib';
+use lib 'lib';
 use Gtk2 '-init';
 use Try::Tiny;
 use MIDI;
-use lib 'lib';
 use Lilith;
 use File::Temp 'tmpnam';
 use IPC::Open3;
