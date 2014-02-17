@@ -48,6 +48,47 @@ sub idx2octave {
     return $octaves[int(shift() / 12)]
 }
 
+sub add_rests {
+    my ($base, @notes) = @_;
+    my @result = $notes[0];
+    for my $i (1..@notes-1) {
+        my $rtime = $notes[$i]->{start} - $notes[$i - 1]->{end};
+        my $ratio = $rtime / $base;
+        if ($ratio > 0.25) {
+            my $rest = { idx => -1, start => $notes[$i - 1]->{end},
+                         end => $notes[$i]->{start}, duration => $rtime,
+                         sound => 'r', octave => '',
+                       };
+            if ($ratio < 0.75) { # more 1/2 than 1
+                $rest->{type} = 8;
+            } else {
+                $rest->{type} = 4;
+            }
+            push @result, $rest;
+        }
+        push @result, $notes[$i];
+    }
+    return @result
+}
+
+sub glue_chords {
+    my ($base, @notes) = @_;
+    my $threshold = $base / 16; # XXX this could be smarter
+    my @result = [shift @notes];
+    while (@notes) {
+        my $n = shift @notes;
+        my @chord = @{pop @result};
+        if (abs($n->{start} - $chord[0]->{start}) < $threshold) {
+            push @chord, $n;
+            push @result, \@chord;
+        } else {
+            push @result, \@chord;
+            push @result, [$n];
+        }
+    }
+    return @result
+}
+
 sub get_notes {
     my @pressed;
     my @notes;
@@ -79,39 +120,19 @@ sub get_notes {
         $_->{octave} = idx2octave($_->{idx});
         $_->{sound} = idx2sound($_->{idx});
     }
-    my @withrests = $notes[0];
-    for my $i (1..@notes-1) {
-        my $rtime = $notes[$i]->{start} - $notes[$i - 1]->{end};
-        my $ratio = $rtime / $base;
-        if ($ratio > 0.25) {
-            my $rest = { idx => -1, start => $notes[$i - 1]->{end},
-                         end => $notes[$i]->{start}, duration => $rtime,
-                         sound => 'r', octave => '',
-                       };
-            if ($ratio < 0.75) { # more 1/2 than 1
-                $rest->{type} = 8;
-            } else {
-                $rest->{type} = 4;
-            }
-            push @withrests, $rest;
-        }
-        push @withrests, $notes[$i];
+    @notes = add_rests($base, @notes);
+    @notes = glue_chords($base, @notes);
+
+    my @lower;
+    for (@notes) {
+        push @lower, [{
+            sound => 'r',
+            type => $_->[0]{type},
+            octave => ''
+        }]
     }
-    # let's glue chords together
-    my $threshold = $base / 16; # XXX this could be smarter
-    my @endresult = [shift @withrests];
-    while (@withrests) {
-        my $n = shift @withrests;
-        my @chord = @{pop @endresult};
-        if (abs($n->{start} - $chord[0]->{start}) < $threshold) {
-            push @chord, $n;
-            push @endresult, \@chord;
-        } else {
-            push @endresult, \@chord;
-            push @endresult, [$n];
-        }
-    }
-    return @endresult;
+
+    return \@notes, \@lower;
 }
 
 sub key_signature {
@@ -211,20 +232,11 @@ sub generate {
     my ($opts, @events) = @_;
     my $key = $opts->{key} // Lilith::KeyGuesser::guess(@events)->[0];
     $ENV{VERBOSE} and warn "Guessed key: $key\n";
-    my @notes = get_notes(@events);
-    my $tempo = $opts->{tempo} // guess_tempo(@notes);
+    my ($upper, $lower) = get_notes(@events);
+    my $tempo = $opts->{tempo} // guess_tempo(@$upper);
     $ENV{VERBOSE} and warn "Guessed tempo: $tempo\n";
 
-    my @lower;
-    for (@notes) {
-        push @lower, [{
-            sound => 'r',
-            type => $_->[0]{type},
-            octave => ''
-        }]
-    }
-
-    return to_lilypond($key, $tempo, \@notes, \@lower);
+    return to_lilypond($key, $tempo, $upper, $lower);
 }
 
 sub generate_pdf {
