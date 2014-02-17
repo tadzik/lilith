@@ -120,19 +120,22 @@ sub get_notes {
         $_->{octave} = idx2octave($_->{idx});
         $_->{sound} = idx2sound($_->{idx});
     }
-    @notes = add_rests($base, @notes);
-    @notes = glue_chords($base, @notes);
-
-    my @lower;
+    my (@upper, @lower);
     for (@notes) {
-        push @lower, [{
-            sound => 'r',
-            type => $_->[0]{type},
-            octave => ''
-        }]
+        # XXX this is dumb as fuck
+        if ($_->{idx} > 62) {
+            push @upper, $_
+        } else {
+            push @lower, $_
+        }
     }
+    @upper = add_rests($base, @upper);
+    @lower = add_rests($base, @lower);
 
-    return \@notes, \@lower;
+    @upper = glue_chords($base, @upper);
+    @lower = glue_chords($base, @lower);
+
+    return \@upper, \@lower;
 }
 
 sub key_signature {
