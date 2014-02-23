@@ -125,6 +125,16 @@ my $vbox = Gtk2::VBox->new;
     $inner_vbox->pack_start($cli_frame, 0, 0, 0);
 
     $vbox->add($inner_vbox);
+
+    $win->signal_connect('size-allocate' => sub {
+        state $last_max = 0;
+        # we need this check, because setting pane position also emits size-allocate, and
+        # we only want to react when the window actually gets resized
+        if ($last_max != $hpaned->get_property('max-position')) {
+            $last_max = $hpaned->get_property('max-position');
+            $hpaned->set_position($last_max / 2);
+        }
+    });
 }
 
 $statusbar = Gtk2::Statusbar->new;
