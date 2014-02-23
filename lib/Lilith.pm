@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use Lilith::KeyGuesser;
 use File::Temp 'tempfile';
-use Text::Format;
 use Data::Dumper;
 
 # fun fact: it's not really a mean =)
@@ -185,10 +184,32 @@ sub chord_to_lilypond {
     }
 }
 
+sub hand_to_lilypond {
+    my ($tempo, @chords) = @_;
+    my $output = "%{ measures 1 to 4 %}\n";
+    my ($howmany, $what) = split(m{/}, $tempo);
+    # how many 16ths in a measure
+    my $measure = (16 / $what) * $howmany;
+    my $measure_cnt = 1;
+    my $fill = 0;
+    for my $chord (@chords) {
+        $output .= chord_to_lilypond($chord) . ' ';
+        $fill += 16 / $chord->[0]{type};
+        if ($fill >= $measure) {
+            $measure_cnt++;
+            $fill = 0;
+            $output .= '| ';
+            if ($measure_cnt % 4 == 0) {
+                $output .= "\n%{measures $measure_cnt to " . ($measure_cnt + 3) . " %}\n";
+            }
+        }
+    }
+    return $output
+}
+
 sub to_lilypond {
     my ($key, $time, $upper, $lower) = @_;
     $key = key_signature($key);
-    my $tf = Text::Format->new(firstIndent => 0);
     sprintf q[\\version "2.16.2"
 upper = {
     %s
@@ -207,9 +228,7 @@ lower = {
         \new Staff = "lower" \lower
     >>
     \layout { }
-}], $key, scalar($tf->format(join(" ", map { chord_to_lilypond($_) } @$upper))),
-    $key, scalar($tf->format(join(" ", map { chord_to_lilypond($_) } @$lower))),
-    $time;
+}], $key, hand_to_lilypond($time, @$upper), $key, hand_to_lilypond($time, @$lower), $time;
 }
 
 # in full notes
