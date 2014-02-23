@@ -16,6 +16,7 @@ $win->signal_connect(delete_event => sub { Gtk2->main_quit });
 $win->show_all;
 
 my $editor;
+my $cli_frame;
 my $cli_log;
 my $statusbar;
 my $current_image;
@@ -37,12 +38,14 @@ my $vbox = Gtk2::VBox->new;
 
             try {
                 $cli_log->get_buffer->set_text('');
+                $cli_frame->set_expanded(0);
                 my $o = MIDI::Opus->new({ from_file => $filename });
                 my $track = ($o->tracks)[0];
                 $editor->get_buffer->set_text(Lilith::generate({}, $track->events));
                 $statusbar->push(0, "$filename opened");
             } catch {
                 $cli_log->get_buffer->set_text("Failed to generate lilypond from $filename:\n\t$_");
+                $cli_frame->set_expanded(1);
                 $statusbar->push(0, 'Something went wrong!');
             };
 
@@ -86,9 +89,11 @@ my $vbox = Gtk2::VBox->new;
         }
         if ($output) {
             $cli_log->get_buffer->set_text($output);
+            $cli_frame->set_expanded(1);
             $statusbar->push(0, 'Something went wrong!');
         } else {
-            $cli_log->get_buffer->set_text($output);
+            $cli_log->get_buffer->set_text('');
+            $cli_frame->set_expanded(0);
 
             $current_image->set_from_file("$tmpfile.png");
 
@@ -99,7 +104,7 @@ my $vbox = Gtk2::VBox->new;
     $vbox->pack_start($button, 0, 0, 0);
 }
 {
-    my $vpaned = Gtk2::VPaned->new;
+    my $inner_vbox = Gtk2::VBox->new;
     my $hpaned = Gtk2::HPaned->new;
     my $editor_frame = Gtk2::Frame->new('Lilypond editor');
     $editor = Gtk2::TextView->new;
@@ -111,15 +116,15 @@ my $vbox = Gtk2::VBox->new;
     $current_image = Gtk2::Image->new;
     $preview->add_with_viewport($current_image);
     $hpaned->add2($image_frame);
-    $vpaned->pack1($hpaned, 1, 1);
+    $inner_vbox->pack_start($hpaned, 1, 1, 0);
 
-    my $cli_frame = Gtk2::Frame->new('CLI output');
+    $cli_frame = Gtk2::Expander->new('CLI output');
     $cli_log = Gtk2::TextView->new;
     $cli_log->set_editable(0);
     $cli_frame->add($cli_log);
-    $vpaned->pack2($cli_frame, 1, 1);
+    $inner_vbox->pack_start($cli_frame, 0, 0, 0);
 
-    $vbox->add($vpaned);
+    $vbox->add($inner_vbox);
 }
 
 $statusbar = Gtk2::Statusbar->new;
