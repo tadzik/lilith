@@ -27,33 +27,71 @@ my $vbox = Gtk2::VBox->new;
     my $hbox = Gtk2::HBox->new;
     my $entry = Gtk2::Entry->new;
     $entry->set_editable(0);
-    my $button = Gtk2::Button->new_from_stock('gtk-open');
-    $button->signal_connect(clicked => sub {
+
+    my $load_midi = sub {
+        my $filename = shift;
+        $entry->set_text($filename);
+
+        try {
+            $cli_log->get_buffer->set_text('');
+            $cli_frame->set_expanded(0);
+            my $o = MIDI::Opus->new({ from_file => $filename });
+            my $track = ($o->tracks)[0];
+            $editor->get_buffer->set_text(Lilith::generate({}, $track->events));
+            $statusbar->push(0, "$filename opened");
+        } catch {
+            $cli_log->get_buffer->set_text("Failed to generate lilypond from $filename:\n\t$_");
+            $cli_frame->set_expanded(1);
+            $statusbar->push(0, 'Something went wrong!');
+        }
+    };
+
+    my $open_button = Gtk2::Button->new_from_stock('gtk-open');
+    $open_button->signal_connect(clicked => sub {
         my $dialog = Gtk2::FileChooserDialog->new(
             'Pick a MIDI file', $win, 'open', 'gtk-cancel' => 'cancel', 'gtk-ok' => 'ok');
 
         if ('ok' eq $dialog->run) {
             my $filename = $dialog->get_filename;
-            $entry->set_text($filename);
-
-            try {
-                $cli_log->get_buffer->set_text('');
-                $cli_frame->set_expanded(0);
-                my $o = MIDI::Opus->new({ from_file => $filename });
-                my $track = ($o->tracks)[0];
-                $editor->get_buffer->set_text(Lilith::generate({}, $track->events));
-                $statusbar->push(0, "$filename opened");
-            } catch {
-                $cli_log->get_buffer->set_text("Failed to generate lilypond from $filename:\n\t$_");
-                $cli_frame->set_expanded(1);
-                $statusbar->push(0, 'Something went wrong!');
-            };
-
+            $load_midi->($filename);
         }
         $dialog->destroy;
     });
+    my $record_button = Gtk2::Button->new_from_stock('gtk-media-record');
+    $record_button->signal_connect(clicked => sub {
+        my %buttons;
+        my @devices = `arecordmidi -l`;
+        shift @devices;
+        my @responses;
+        for (@devices) {
+            $_ =~ s/^\s*//;
+            my @parts = split (/\s\s+/, $_);
+            my $key = sprintf "%s (%s)", $parts[1], $parts[0];
+            push @responses, $parts[0];
+            $buttons{$key} = $#responses;
+        }
+        my $dialog = Gtk2::Dialog->new_with_buttons(
+            "Pick a MIDI device", $win, [qw/modal destroy-with-parent/], %buttons
+        );
+        my $resp = $dialog->run();
+        my $port = $responses[$resp];
+        $dialog->destroy;
+        my $tmpfile = tmpnam() . ".mid";
+        my $pid = fork();
+        if (!$pid) {
+            exec("arecordmidi -p $port $tmpfile");
+        }
+        $dialog = Gtk2::Dialog->new_with_buttons(
+            "Recording...", $win, [qw/modal destroy-with-parent/], 'Stop recording', 0
+        );
+        $dialog->run();
+        $dialog->destroy();
+        kill 'TERM', $pid;
+        $load_midi->($tmpfile);
+    });
     $hbox->add($entry);
-    $hbox->pack_start($button, 0, 0, 0);
+    $hbox->pack_start($open_button, 0, 0, 0);
+    $hbox->pack_start($record_button, 0, 0, 0);
 
     $vbox->pack_start($hbox, 0, 0, 0);
 }

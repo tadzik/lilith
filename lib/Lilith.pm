@@ -124,6 +124,9 @@ sub get_notes {
             $note->{end} = $note->{start} + $note->{duration};
         }
     }
+    unless (@notes) {
+        die "File appears to be empty"
+    }
     my $base = 0.5*mean(map { $_->{duration} } @notes);
 
     for (@notes) {
