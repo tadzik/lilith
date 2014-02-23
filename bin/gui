@@ -2,8 +2,8 @@
 use 5.010;
 use strict;
 use warnings;
-use lib 'extlib';
 use lib 'lib';
+use local::lib 'extlib';
 use Gtk2 '-init';
 use Try::Tiny;
 use MIDI;

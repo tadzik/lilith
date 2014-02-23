@@ -1,9 +1,9 @@
 #!/usr/bin/env perl
-use lib 'extlib';
-use lib 'lib';
 use 5.010;
 use strict;
 use warnings;
+use lib 'lib';
+use local::lib 'extlib';
 use Getopt::Long;
 use MIDI;
 use Lilith;

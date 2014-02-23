@@ -4,6 +4,8 @@ use strict;
 use warnings;
 use Lilith::KeyGuesser;
 use File::Temp 'tempfile';
+use Text::Format;
+use Data::Dumper;
 
 # fun fact: it's not really a mean =)
 # a real mean yields idiotic results, when it happens to compute average time of 1/8 and 1/4
@@ -89,6 +91,24 @@ sub glue_chords {
     return @result
 }
 
+sub duration_to_type {
+    my ($duration, $base) = @_;
+
+    my $ratio = $duration / $base;
+
+    if ($ratio < 0.75) {
+        return '8'
+    } elsif ($ratio < 1.5) {
+        return '4'
+    } elsif ($ratio < 2) {
+        return '4.'
+    } elsif ($ratio < 2.5) {
+        return '2'
+    } else {
+        return '2.'
+    }
+}
+
 sub get_notes {
     my @pressed;
     my @notes;
@@ -105,18 +125,10 @@ sub get_notes {
             $note->{end} = $note->{start} + $note->{duration};
         }
     }
-    my $base = mean(map { $_->{duration} } @notes);
+    my $base = 0.5*mean(map { $_->{duration} } @notes);
+
     for (@notes) {
-        my $ratio = $_->{duration} / $base;
-        if ($ratio < 0.75) { # more 1/2 than 1
-            $_->{type} = 8;
-        } elsif ($ratio < 1.5) {
-            $_->{type} = 4;
-        } elsif ($ratio < 2.5) {
-            $_->{type} = 2;
-        } else {
-            $_->{type} = '2.';
-        }
+        $_->{type} = duration_to_type($_->{duration}, $base);
         $_->{octave} = idx2octave($_->{idx});
         $_->{sound} = idx2sound($_->{idx});
     }
@@ -176,6 +188,7 @@ sub chord_to_lilypond {
 sub to_lilypond {
     my ($key, $time, $upper, $lower) = @_;
     $key = key_signature($key);
+    my $tf = Text::Format->new(firstIndent => 0);
     sprintf q[\\version "2.16.2"
 upper = {
     %s
@@ -194,8 +207,8 @@ lower = {
         \new Staff = "lower" \lower
     >>
     \layout { }
-}], $key, join(" ", map { chord_to_lilypond($_) } @$upper),
-    $key, join(" ", map { chord_to_lilypond($_) } @$lower),
+}], $key, scalar($tf->format(join(" ", map { chord_to_lilypond($_) } @$upper))),
+    $key, scalar($tf->format(join(" ", map { chord_to_lilypond($_) } @$lower))),
     $time;
 }
 
