@@ -135,12 +135,13 @@ sub get_notes {
         $_->{sound} = idx2sound($_->{idx});
     }
     my (@upper, @lower);
+    my $lastlower = 48; # C3
+    my $lastupper = 74; # C5
     for (@notes) {
-        # XXX this is dumb as fuck
-        if ($_->{idx} > 62) {
-            push @upper, $_
-        } else {
+        if (abs($_->{idx} - $lastlower) < abs($_->{idx} - $lastupper)) {
             push @lower, $_
+        } else {
+            push @upper, $_
         }
     }
     @upper = add_rests($base, @upper);
