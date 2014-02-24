@@ -138,10 +138,15 @@ sub get_notes {
     my $lastlower = 48; # C3
     my $lastupper = 74; # C5
     for (@notes) {
+        #print "lastlower: $lastlower, lastupper: $lastupper, current: ".$_->{idx};
         if (abs($_->{idx} - $lastlower) < abs($_->{idx} - $lastupper)) {
-            push @lower, $_
+            #say " ... goes lower";
+            $lastlower = $_->{idx};
+            push @lower, $_;
         } else {
-            push @upper, $_
+            #say " ... goes upper";
+            $lastupper = $_->{idx};
+            push @upper, $_;
         }
     }
     @upper = add_rests($base, @upper);
