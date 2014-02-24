@@ -145,12 +145,12 @@ sub get_notes {
         }
     }
     @upper = add_rests($base, @upper);
-    @lower = add_rests($base, @lower);
+    @lower = add_rests($base, @lower) if @lower;
 
     @upper = glue_chords($base, @upper);
-    @lower = glue_chords($base, @lower);
+    @lower = glue_chords($base, @lower) if @lower;
 
-    return \@upper, \@lower;
+    return \@upper, (@lower ? \@lower : undef);
 }
 
 sub key_signature {
@@ -236,7 +236,8 @@ lower = {
         \new Staff = "lower" \lower
     >>
     \layout { }
-}], $key, hand_to_lilypond($time, @$upper), $key, hand_to_lilypond($time, @$lower), $time;
+}], $key, hand_to_lilypond($time, @$upper), $key,
+    ($lower ? hand_to_lilypond($time, @$lower) : ''), $time;
 }
 
 # in full notes
