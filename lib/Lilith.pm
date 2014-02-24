@@ -198,7 +198,11 @@ sub hand_to_lilypond {
     my $fill = 0;
     for my $chord (@chords) {
         $output .= chord_to_lilypond($chord) . ' ';
-        $fill += 16 / $chord->[0]{type};
+        my $type = int($chord->[0]{type});
+        $fill += 16 / $type;
+        if ($chord->[0]{type} =~ /\.$/) {
+            $fill *= 1.5;
+        }
         if ($fill >= $measure) {
             $measure_cnt++;
             $fill = 0;
