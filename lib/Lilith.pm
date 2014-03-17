@@ -127,7 +127,7 @@ sub get_notes {
     unless (@notes) {
         die "File appears to be empty"
     }
-    my $base = 0.5*mean(map { $_->{duration} } @notes);
+    my $base = mean(map { $_->{duration} } @notes);
 
     for (@notes) {
         $_->{type} = duration_to_type($_->{duration}, $base);
@@ -149,13 +149,14 @@ sub get_notes {
             push @upper, $_;
         }
     }
-    @upper = add_rests($base, @upper);
+    @upper = add_rests($base, @upper) if @upper;
     @lower = add_rests($base, @lower) if @lower;
 
-    @upper = glue_chords($base, @upper);
+    @upper = glue_chords($base, @upper) if @upper;
     @lower = glue_chords($base, @lower) if @lower;
 
-    return \@upper, (@lower ? \@lower : undef);
+    return (@upper ? \@upper : undef);
+           (@lower ? \@lower : undef);
 }
 
 sub key_signature {
@@ -213,16 +214,37 @@ sub hand_to_lilypond {
             $fill = 0;
             $output .= '| ';
             if ($measure_cnt % 4 == 0) {
-                $output .= "\n%{measures $measure_cnt to " . ($measure_cnt + 3) . " %}\n";
+                $output .= "\n%{ measures $measure_cnt to " . ($measure_cnt + 3) . " %}\n";
             }
         }
     }
     return $output
 }
 
+sub to_lilypond_simple {
+    my ($key, $time, $upper, $lower) = @_;
+    my ($source, $clef);
+    if ($upper) {
+        $clef = '\clef "treble"';
+        $source = $upper;
+    } else {
+        $clef = '\clef "bass"';
+        $source = $lower;
+    }
+    sprintf q[\version "2.16.2" {
+    %s
+    %s
+    \time %s
+    %s
+}], $key, $clef, $time, hand_to_lilypond($time, @$source);
+}
+
 sub to_lilypond {
     my ($key, $time, $upper, $lower) = @_;
     $key = key_signature($key);
+    if (defined($upper) + defined($lower) < 2) {
+        return to_lilypond_simple($key, $time, $upper, $lower);
+    }
     sprintf q[\\version "2.16.2"
 upper = {
     %s
@@ -241,13 +263,14 @@ lower = {
         \new Staff = "lower" \lower
     >>
     \layout { }
-}], $key, hand_to_lilypond($time, @$upper), $key,
-    ($lower ? hand_to_lilypond($time, @$lower) : ''), $time;
+}], $key, hand_to_lilypond($time, @$upper),
+    $key, hand_to_lilypond($time, @$lower), $time;
 }
 
 # in full notes
 sub total_length {
     my $ret = 0;
+    use Data::Dumper;
     for (@_) {
         for (@$_) {
             my $part += 1 / int($_->{type});
@@ -282,7 +305,7 @@ sub generate {
     my $key = $opts->{key} // Lilith::KeyGuesser::guess(@events)->[0];
     $ENV{VERBOSE} and warn "Guessed key: $key\n";
     my ($upper, $lower) = get_notes(@events);
-    my $tempo = $opts->{tempo} // guess_tempo(@$upper);
+    my $tempo = $opts->{tempo} // ($upper ? guess_tempo(@$upper) : guess_tempo(@$lower));
     $ENV{VERBOSE} and warn "Guessed tempo: $tempo\n";
 
     return to_lilypond($key, $tempo, $upper, $lower);
