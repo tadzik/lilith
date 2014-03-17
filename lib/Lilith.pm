@@ -155,7 +155,7 @@ sub get_notes {
     @upper = glue_chords($base, @upper) if @upper;
     @lower = glue_chords($base, @lower) if @lower;
 
-    return (@upper ? \@upper : undef);
+    return (@upper ? \@upper : undef),
            (@lower ? \@lower : undef);
 }
 
