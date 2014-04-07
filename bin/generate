@@ -8,12 +8,13 @@ use Getopt::Long;
 use MIDI;
 use Lilith;
 
-my ($keep, $key, $clef, $tempo) = 0;
+my ($keep, $key, $clef, $tempo, $verbose);
 
 GetOptions("key=s" => \$key,
            "tempo=s" => \$tempo,
            "clef=s" => \$clef,
            "keep-ly" => \$keep,
+           "verbose" => \$verbose,
 ) or do { say "Error processing command-line arguments: $!"; exit 1 };
 my %opts;
 $opts{keep} = $keep;
@@ -27,5 +28,5 @@ my $o = MIDI::Opus->new({ from_file => ($ARGV[0] or do {
 }) });
 my $track = ($o->tracks)[0];
 
-$ENV{VERBOSE} = 1;
+$ENV{VERBOSE} = $verbose;
 Lilith::generate_pdf("output", \%opts, $track->events);

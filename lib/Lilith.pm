@@ -14,6 +14,14 @@ sub mean {
     return $arr[$idx];
 }
 
+sub LOG {
+    $ENV{VERBOSE} and print @_
+}
+
+sub LOGN {
+    LOG @_, "\n"
+}
+
 my @sounds = (
     'c',   # 0
     'cis', # 1
@@ -138,18 +146,20 @@ sub divide_hands_simple {
 }
 
 sub divide_hands_tracing {
+    # TODO (P3 or so): it could try to keep track of which finger pressed the last key,
+    # to even better trace hand positioning
     my (@upper, @lower);
     my $lastlower = 48; # C3
     my $lastupper = 74; # C5
     for (@_) {
-        #print "lastlower: $lastlower, lastupper: $lastupper, current: ".$_->{idx}
-        #      ." (".$MIDI::number2note{$_->{idx}}.")";
+        LOG "lastlower: $lastlower, lastupper: $lastupper, current: ".$_->{idx}
+            ." (".$MIDI::number2note{$_->{idx}}.")";
         if (abs($_->{idx} - $lastlower) < abs($_->{idx} - $lastupper)) {
-            #say " ... goes lower";
+            LOGN " ... goes lower";
             $lastlower = $_->{idx};
             push @lower, $_;
         } else {
-            #say " ... goes upper";
+            LOGN " ... goes upper";
             $lastupper = $_->{idx};
             push @upper, $_;
         }
@@ -176,14 +186,14 @@ sub divide_hands {
     # lower is better
     my $score_s = rate_hand_division($upper_s, $lower_s);
     my $score_t = rate_hand_division($upper_t, $lower_t);
-    #say "Score for simple  method: $score_s";
-    #say "Score for tracing method: $score_t";
+    LOGN "Score for simple  method: $score_s";
+    LOGN "Score for tracing method: $score_t";
 
     if ($score_s < $score_t) {
-        #say "Simple wins";
+        LOGN "Simple wins";
         return $upper_s, $lower_s
     } else {
-        #say "Tracing wins";
+        LOGN "Tracing wins";
         return $upper_t, $lower_t
     }
 }
@@ -355,10 +365,10 @@ sub guess_tempo {
 sub generate {
     my ($opts, @events) = @_;
     my $key = $opts->{key} // Lilith::KeyGuesser::guess(@events)->[0];
-    $ENV{VERBOSE} and warn "Guessed key: $key\n";
+    LOGN "Guessed key: $key";
     my ($upper, $lower) = get_notes(@events);
     my $tempo = $opts->{tempo} // ($upper ? guess_tempo(@$upper) : guess_tempo(@$lower));
-    $ENV{VERBOSE} and warn "Guessed tempo: $tempo\n";
+    LOGN "Guessed tempo: $tempo";
 
     return to_lilypond($key, $tempo, $upper, $lower);
 }
@@ -369,10 +379,10 @@ sub generate_pdf {
     my ($fh, $filename) = tempfile();
     say $fh $contents;
     close $fh;
-    warn "Running lilypond\n";
+    LOGN "Running lilypond";
     system("lilypond -s -o $pdffile $filename");
     if ($opts->{keep}) {
-        warn "File saved as $filename\n";
+        LOGN "File saved as $filename";
     } else {
         unlink $filename
     }
