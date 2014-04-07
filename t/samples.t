@@ -30,6 +30,34 @@ g'4 e'4 e'4 | f'4 d'4 d'4 | c'8 e'8 c'4
 }
 EOF2
 ,
+    'samples/pick_simple_division.mid' => <<'EOF3'
+\version "2.16.2"
+upper = {
+    \key g \major
+    \clef "treble"
+    %{ measures 1 to 4 %}
+d''4 g'8 a'8 b'8 c''8 | d''4 g'4 g'4 | e''4 c''8 d''8 e''8 fis''8 |
+%{ measures 4 to 7 %}
+g''4 g'4 g'4 |
+}
+lower = {
+    \key g \major
+    \clef "bass"
+    %{ measures 1 to 4 %}
+<< g2 d'2 b2 >> a4 | b2. | c'2. |
+%{ measures 4 to 7 %}
+b2. |
+}
+\score {
+    \new PianoStaff <<
+        \time 3/4
+        \new Staff = "upper" \upper
+        \new Staff = "lower" \lower
+    >>
+    \layout { }
+}
+EOF3
+,
 );
 
 sub normalize {

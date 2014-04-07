@@ -49,6 +49,22 @@ sub idx2octave {
     return $octaves[int(shift() / 12)]
 }
 
+# in full notes
+sub total_length {
+    my $ret = 0;
+    use Data::Dumper;
+    for (@_) {
+        for (@$_) {
+            my $part += 1 / int($_->{type});
+            if ($_->{type} =~ /\.$/) {
+                $part *= 1.5;
+            }
+            $ret += $part;
+        }
+    }
+    return $ret
+}
+
 sub add_rests {
     my ($base, @notes) = @_;
     my @result = $notes[0];
@@ -108,6 +124,71 @@ sub duration_to_type {
     }
 }
 
+sub divide_hands_simple {
+    my (@upper, @lower);
+    my $lastlower = 52; # E3
+    my $lastupper = 74; # C5
+    for (@_) {
+        if (abs($_->{idx} - $lastlower) < abs($_->{idx} - $lastupper)) {
+            push @lower, $_;
+        } else {
+            push @upper, $_;
+        }
+    }
+    return \@upper, \@lower
+}
+
+sub divide_hands_tracing {
+    my (@upper, @lower);
+    my $lastlower = 48; # C3
+    my $lastupper = 74; # C5
+    for (@_) {
+        #print "lastlower: $lastlower, lastupper: $lastupper, current: ".$_->{idx}
+        #      ." (".$MIDI::number2note{$_->{idx}}.")";
+        if (abs($_->{idx} - $lastlower) < abs($_->{idx} - $lastupper)) {
+            #say " ... goes lower";
+            $lastlower = $_->{idx};
+            push @lower, $_;
+        } else {
+            #say " ... goes upper";
+            $lastupper = $_->{idx};
+            push @upper, $_;
+        }
+    }
+    return \@upper, \@lower
+}
+
+sub rate_hand_division {
+    my ($upper, $lower) = @_;
+
+    my $ulen = total_length($upper);
+    my $llen = total_length($lower);
+    if (!$ulen or !$llen) {
+        # it's probably one-handed
+        return -1
+    }
+    return abs($ulen - $llen);
+}
+
+sub divide_hands {
+    # let's try both and see which is better
+    my ($upper_s, $lower_s) = divide_hands_simple(@_);
+    my ($upper_t, $lower_t) = divide_hands_tracing(@_);
+    # lower is better
+    my $score_s = rate_hand_division($upper_s, $lower_s);
+    my $score_t = rate_hand_division($upper_t, $lower_t);
+    #say "Score for simple  method: $score_s";
+    #say "Score for tracing method: $score_t";
+
+    if ($score_s < $score_t) {
+        #say "Simple wins";
+        return $upper_s, $lower_s
+    } else {
+        #say "Tracing wins";
+        return $upper_t, $lower_t
+    }
+}
+
 sub get_notes {
     my @pressed;
     my @notes;
@@ -134,21 +215,9 @@ sub get_notes {
         $_->{octave} = idx2octave($_->{idx});
         $_->{sound} = idx2sound($_->{idx});
     }
-    my (@upper, @lower);
-    my $lastlower = 48; # C3
-    my $lastupper = 74; # C5
-    for (@notes) {
-        #print "lastlower: $lastlower, lastupper: $lastupper, current: ".$_->{idx};
-        if (abs($_->{idx} - $lastlower) < abs($_->{idx} - $lastupper)) {
-            #say " ... goes lower";
-            $lastlower = $_->{idx};
-            push @lower, $_;
-        } else {
-            #say " ... goes upper";
-            $lastupper = $_->{idx};
-            push @upper, $_;
-        }
-    }
+    my ($u, $l) = divide_hands(@notes);
+    my @upper = @$u;
+    my @lower = @$l;
     @upper = add_rests($base, @upper) if @upper;
     @lower = add_rests($base, @lower) if @lower;
 
@@ -265,22 +334,6 @@ lower = {
     \layout { }
 }], $key, hand_to_lilypond($time, @$upper),
     $key, hand_to_lilypond($time, @$lower), $time;
-}
-
-# in full notes
-sub total_length {
-    my $ret = 0;
-    use Data::Dumper;
-    for (@_) {
-        for (@$_) {
-            my $part += 1 / int($_->{type});
-            if ($_->{type} =~ /\.$/) {
-                $part *= 1.5;
-            }
-            $ret += $part;
-        }
-    }
-    return $ret
 }
 
 sub guess_tempo {
