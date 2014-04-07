@@ -126,10 +126,9 @@ sub duration_to_type {
 
 sub divide_hands_simple {
     my (@upper, @lower);
-    my $lastlower = 52; # E3
-    my $lastupper = 74; # C5
+    my $divisor = 63; # Ds5, a magical key betwen C3 and C5
     for (@_) {
-        if (abs($_->{idx} - $lastlower) < abs($_->{idx} - $lastupper)) {
+        if ($_->{idx} < $divisor) {
             push @lower, $_;
         } else {
             push @upper, $_;
