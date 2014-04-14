@@ -10,6 +10,7 @@ use MIDI;
 use Lilith;
 use File::Temp 'tmpnam';
 use IPC::Open3;
+use Cwd;
 
 my $win = Gtk2::Window->new('toplevel');
 $win->signal_connect(delete_event => sub { Gtk2->main_quit });
@@ -50,6 +51,7 @@ my $vbox = Gtk2::VBox->new;
     $open_button->signal_connect(clicked => sub {
         my $dialog = Gtk2::FileChooserDialog->new(
             'Pick a MIDI file', $win, 'open', 'gtk-cancel' => 'cancel', 'gtk-ok' => 'ok');
+        $dialog->set_current_folder(getcwd);
 
         if ('ok' eq $dialog->run) {
             my $filename = $dialog->get_filename;
