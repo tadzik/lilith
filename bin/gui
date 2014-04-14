@@ -145,8 +145,34 @@ my $vbox = Gtk2::VBox->new;
     my $inner_vbox = Gtk2::VBox->new;
     my $hpaned = Gtk2::HPaned->new;
     my $editor_frame = Gtk2::Frame->new('Lilypond editor');
+
+    my $editor_box = Gtk2::VBox->new;
     $editor = Gtk2::TextView->new;
-    $editor_frame->add($editor);
+    $editor_box->pack_start($editor, 1, 1, 0);
+
+    my $snr_frame = Gtk2::Frame->new('Search & Replace');
+    my $snr_box = Gtk2::HBox->new;
+    $snr_box->add(Gtk2::Label->new("Pattern:"));
+    my $pat = Gtk2::Entry->new;
+    $snr_box->add($pat);
+    $snr_box->add(Gtk2::Label->new("Replacement:"));
+    my $rep =  Gtk2::Entry->new;
+    $snr_box->add($rep);
+    my $but = Gtk2::Button->new_from_stock('gtk-apply');
+    $but->signal_connect(clicked => sub {
+        my $pattern = $pat->get_text;
+        my $replacement = $rep->get_text;
+        my $buf = $editor->get_buffer;
+        my $text = $buf->get_text($buf->get_start_iter, $buf->get_end_iter, 1);
+        $text =~ s/$pattern/eval $replacement/ge;
+        $buf->set_text($text);
+    });
+    $snr_box->add($but);
+    $snr_frame->add($snr_box);
+    $editor_box->pack_start($snr_frame, 0, 0, 0);
+
+    $editor_frame->add($editor_box);
+
     $hpaned->add1($editor_frame);
     my $image_frame = Gtk2::Frame->new('Here be preview');
     my $preview = Gtk2::ScrolledWindow->new;
