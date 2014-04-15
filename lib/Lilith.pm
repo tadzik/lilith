@@ -1,10 +1,11 @@
 package Lilith;
 use 5.010;
 use strict;
-use warnings;
+use warnings FATAL => 'all';
 use Lilith::KeyGuesser;
 use File::Temp 'tempfile';
 use Data::Dumper;
+use Carp::Always;
 
 # fun fact: it's not really a mean =)
 # a real mean yields idiotic results, when it happens to compute average time of 1/8 and 1/4
@@ -63,6 +64,7 @@ sub total_length {
     use Data::Dumper;
     for (@_) {
         for (@$_) {
+            next unless $_->{type};
             my $part += 1 / int($_->{type});
             if ($_->{type} =~ /\.$/) {
                 $part *= 1.5;
@@ -198,43 +200,174 @@ sub divide_hands {
     }
 }
 
-sub get_notes {
-    my @pressed;
-    my @notes;
+# for 1/32 resolution
+sub length2type {
+    my $diff = shift;
+    my $t;
+    if ($diff > 32) {
+        $t = 1
+    } elsif ($diff > 24) {
+        $t = '2.'
+    } elsif ($diff > 16) {
+        $t = 2
+    } elsif ($diff > 12) {
+        $t = '4.'
+    } elsif ($diff > 8) {
+        $t = 4
+    } elsif ($diff > 4) {
+        $t = 8
+    } elsif ($diff > 2) {
+        $t = 16
+    }
+    return $t
+}
+
+sub get_notes_polling {
+    my ($resolution, @stream) = @_;
+
     my $currenttime = 0;
-    for (@_) {
+    my (@events, @pending);
+
+    for (@stream) {
         $currenttime += $_->[1];
+        while ($currenttime > $resolution) {
+            if (@pending) {
+                my @copy = @pending;
+                push @events, \@copy;
+                @pending = ()
+            } else {
+                push @events, []
+            }
+            $currenttime -= $resolution;
+        }
         if ($_->[0] eq 'note_on') {
-            my $note = { idx => $_->[3], start => $currenttime };
-            $pressed[$_->[3]] = $note;
-            push @notes, $note;
+            push @pending, $_->[3]
         } elsif ($_->[0] eq 'note_off') {
-            my $note = $pressed[$_->[3]];
-            $note->{duration} = $currenttime - $note->{start};
-            $note->{end} = $note->{start} + $note->{duration};
+            push @pending, -$_->[3]
         }
     }
-    unless (@notes) {
+    # trim from both sides
+    shift @events while @{$events[0]} == 0;
+    pop @events while @{$events[$#events]} == 0;
+    
+    unless (@events) {
         die "File appears to be empty"
     }
-    my $base = mean(map { $_->{duration} } @notes);
 
-    for (@notes) {
-        $_->{type} = duration_to_type($_->{duration}, $base);
-        $_->{octave} = idx2octave($_->{idx});
-        $_->{sound} = idx2sound($_->{idx});
+    my @notes;
+    my $i = 0;
+    my $dirty = 0;
+    while ($i < $#events) {
+        my @ev = @{$events[$i]};
+
+        my @current;
+        if (@ev) {
+            for my $e (@ev) {
+                if ($e > 0) { # note_on
+                    # look for the matching note_off
+                    my $endidx = $i;
+                    LOOP: while (1) {
+                        my @cands = @{$events[$endidx]};
+                        for (@cands) {
+                            if ($_ == -$e) {
+                                last LOOP;
+                            }
+                        }
+                        $endidx++;
+                        $dirty = $endidx;
+                    }
+                    my $diff = $endidx - $i;
+                    my $n = {
+                        type => length2type($diff),
+                        octave => idx2octave($e),
+                        sound => idx2sound($e)
+                    };
+                    push @current, $n
+                }
+            }
+            push @notes, \@current if @current;
+            $i++;
+        } elsif ($i > $dirty) {
+            # a pause starts here, let's look for the end of it
+            my $start = $i;
+            while (1) {
+                last if @{$events[$i]};
+                $i++;
+            }
+            my $diff = $i - $start;
+            my $n = {
+                type => length2type($diff),
+                sound => 'r',
+                octave => '',
+            };
+            push @notes, [$n] if $n->{type}; # just skip it if it's too short
+        } else {
+            # it's not a pause, we're just between some note_on and note_off
+            while (1) {
+                last if @{$events[$i]};
+                $i++;
+            }
+        }
     }
-    my ($u, $l) = divide_hands(@notes);
-    my @upper = @$u;
-    my @lower = @$l;
-    @upper = add_rests($base, @upper) if @upper;
-    @lower = add_rests($base, @lower) if @lower;
 
-    @upper = glue_chords($base, @upper) if @upper;
-    @lower = glue_chords($base, @lower) if @lower;
+    #print Dumper \@notes;
 
-    return (@upper ? \@upper : undef),
-           (@lower ? \@lower : undef);
+    return @notes;
+}
+
+sub rate_notes {
+    my $score = 0;
+
+    my $last = $_[0][0]{type};
+
+    for (@_) {
+        $last //= '';
+        if (not defined $_->[0]{type}) {
+            $score += 5;
+        } elsif ($_->[0]{type} ne $last) {
+            $score += 2;
+        }
+        if (($_->[0]{type} // '') =~ /\./) {
+            $score++;
+        }
+        $last = $_->[0]{type};
+    }
+    return $score;
+}
+
+sub get_notes {
+    my @events = @_;
+
+    my $resolution = 55;
+    my @best = get_notes_polling(30, @events);
+    my $bestscore = rate_notes(@best);
+
+    for (31..60) {
+        my @new = get_notes_polling($_, @events);
+        my $score = rate_notes(@new);
+        say "$_ => $score";
+        if ($score < $bestscore) {
+            say "Resolution $_ is now winning";
+            $bestscore = $score;
+            @best = @new;
+        }
+    }
+    
+    say "Best score is $bestscore";
+
+    return \@best, undef;
+
+    #for (@notes) {
+    #    $_->{type} = duration_to_type($_->{duration}, $base);
+    #    $_->{octave} = idx2octave($_->{idx});
+    #    $_->{sound} = idx2sound($_->{idx});
+    #}
+    #my ($u, $l) = divide_hands(@notes);
+    #my @upper = @$u;
+    #my @lower = @$l;
+
+    #return (@upper ? \@upper : undef),
+    #       (@lower ? \@lower : undef);
 }
 
 sub key_signature {
