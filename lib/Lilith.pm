@@ -61,7 +61,6 @@ sub idx2octave {
 # in full notes
 sub total_length {
     my $ret = 0;
-    use Data::Dumper;
     for (@_) {
         for (@$_) {
             next unless $_->{type};
@@ -136,13 +135,30 @@ sub duration_to_type {
 
 sub divide_hands_simple {
     my (@upper, @lower);
+    my ($upper_legit, $lower_legit);
     my $divisor = 63; # Ds5, a magical key betwen C3 and C5
-    for (@_) {
-        if ($_->{idx} < $divisor) {
-            push @lower, $_;
-        } else {
-            push @upper, $_;
+    for my $outer (@_) {
+        my (@cands_l, @cands_u);
+        for (@$outer) {
+            if ($_->{idx} == -1) {
+                push @cands_l, $_;
+                push @cands_u, $_;
+            } elsif ($_->{idx} < $divisor) {
+                push @cands_l, $_;
+                $lower_legit = 1;
+            } else {
+                push @cands_u, $_;
+                $upper_legit = 1;
+            }
         }
+        push @upper, \@cands_u;
+        push @lower, \@cands_l;
+    }
+    unless ($upper_legit) {
+        @upper = ()
+    }
+    unless ($lower_legit) {
+        @lower = ()
     }
     return \@upper, \@lower
 }
@@ -151,20 +167,37 @@ sub divide_hands_tracing {
     # TODO (P3 or so): it could try to keep track of which finger pressed the last key,
     # to even better trace hand positioning
     my (@upper, @lower);
+    my ($upper_legit, $lower_legit);
     my $lastlower = 48; # C3
     my $lastupper = 74; # C5
-    for (@_) {
-        LOG "lastlower: $lastlower, lastupper: $lastupper, current: ".$_->{idx}
-            ." (".$MIDI::number2note{$_->{idx}}.")";
-        if (abs($_->{idx} - $lastlower) < abs($_->{idx} - $lastupper)) {
-            LOGN " ... goes lower";
-            $lastlower = $_->{idx};
-            push @lower, $_;
-        } else {
-            LOGN " ... goes upper";
-            $lastupper = $_->{idx};
-            push @upper, $_;
+    for my $outer (@_) {
+        my (@cands_l, @cands_u);
+        for (@$outer) {
+            LOG "lastlower: $lastlower, lastupper: $lastupper, current: ".$_->{idx}
+                ." (".$MIDI::number2note{$_->{idx}}.")" unless $_->{idx} == -1;
+            if ($_->{idx} == -1) {
+                push @cands_l, $_;
+                push @cands_u, $_;
+            } elsif (abs($_->{idx} - $lastlower) < abs($_->{idx} - $lastupper)) {
+                LOGN " ... goes lower";
+                $lastlower = $_->{idx};
+                push @cands_l, $_;
+                $lower_legit = 1;
+            } else {
+                LOGN " ... goes upper";
+                $lastupper = $_->{idx};
+                push @cands_u, $_;
+                $upper_legit = 1;
+            }
         }
+        push @upper, \@cands_u;
+        push @lower, \@cands_l;
+    }
+    unless ($upper_legit) {
+        @upper = ()
+    }
+    unless ($lower_legit) {
+        @lower = ()
     }
     return \@upper, \@lower
 }
@@ -172,8 +205,8 @@ sub divide_hands_tracing {
 sub rate_hand_division {
     my ($upper, $lower) = @_;
 
-    my $ulen = total_length($upper);
-    my $llen = total_length($lower);
+    my $ulen = total_length(@$upper);
+    my $llen = total_length(@$lower);
     if (!$ulen or !$llen) {
         # it's probably one-handed
         return -1
@@ -280,7 +313,8 @@ sub get_notes_polling {
                     my $n = {
                         type => length2type($diff),
                         octave => idx2octave($e),
-                        sound => idx2sound($e)
+                        sound => idx2sound($e),
+                        idx => $e,
                     };
                     push @current, $n
                 }
@@ -299,6 +333,7 @@ sub get_notes_polling {
                 type => length2type($diff),
                 sound => 'r',
                 octave => '',
+                idx => -1,
             };
             push @notes, [$n] if $n->{type}; # just skip it if it's too short
         } else {
@@ -345,29 +380,20 @@ sub get_notes {
     for (31..60) {
         my @new = get_notes_polling($_, @events);
         my $score = rate_notes(@new);
-        say "$_ => $score";
+        #say "$_ => $score";
         if ($score < $bestscore) {
-            say "Resolution $_ is now winning";
+            #say "Resolution $_ is now winning";
             $bestscore = $score;
             @best = @new;
         }
     }
     
-    say "Best score is $bestscore";
+    #say "Best score is $bestscore";
 
-    return \@best, undef;
+    my ($upper, $lower) = divide_hands(@best);
 
-    #for (@notes) {
-    #    $_->{type} = duration_to_type($_->{duration}, $base);
-    #    $_->{octave} = idx2octave($_->{idx});
-    #    $_->{sound} = idx2sound($_->{idx});
-    #}
-    #my ($u, $l) = divide_hands(@notes);
-    #my @upper = @$u;
-    #my @lower = @$l;
-
-    #return (@upper ? \@upper : undef),
-    #       (@lower ? \@lower : undef);
+    return (@$upper ? $upper : undef),
+           (@$lower ? $lower : undef);
 }
 
 sub key_signature {
