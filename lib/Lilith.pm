@@ -392,6 +392,9 @@ sub key_signature {
 
 sub note_to_lilypond {
     my $n = shift;
+    unless (defined $n->{type}) { # XXX ozdobniki
+        return ''
+    }
     sprintf "%s%s%s", $n->{sound}, $n->{octave}, $n->{type};
 }
 
@@ -415,6 +418,7 @@ sub hand_to_lilypond {
     my $fill = 0;
     for my $chord (@chords) {
         $output .= chord_to_lilypond($chord) . ' ';
+        next unless $chord->[0]{type}; # XXX ozdobniki
         my $type = int($chord->[0]{type});
         $fill += 16 / $type;
         if ($chord->[0]{type} =~ /\.$/) {
