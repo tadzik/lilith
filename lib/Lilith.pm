@@ -383,28 +383,35 @@ sub rate_notes {
 
 sub get_notes {
     my ($conf, @events) = @_;
+    my @notes;
+    my $resolution = $conf->{resolution};
 
-    my $resolution = 55;
-    my @best = get_notes_polling(30, @events);
-    my $bestscore = rate_notes(@best);
+    if ($resolution) {
+        @notes = get_notes_polling($conf->{resolution}, @events);
+    } else {
+        @notes = get_notes_polling(30, @events);
+        my $bestscore = rate_notes(@notes);
+        $resolution = 30;
 
-    for (31..60) {
-        my @new = get_notes_polling($_, @events);
-        my $score = rate_notes(@new);
-        #say "$_ => $score";
-        if ($score < $bestscore) {
-            #say "Resolution $_ is now winning";
-            $bestscore = $score;
-            @best = @new;
+        for (31..60) {
+            my @new = get_notes_polling($_, @events);
+            my $score = rate_notes(@new);
+            #say "$_ => $score";
+            if ($score < $bestscore) {
+                #say "Resolution $_ is now winning";
+                $resolution = $_;
+                $bestscore = $score;
+                @notes = @new;
+            }
         }
     }
-    
     #say "Best score is $bestscore";
 
-    my ($upper, $lower) = divide_hands($conf, @best);
+    my ($upper, $lower) = divide_hands($conf, @notes);
 
     return (@$upper ? $upper : undef),
-           (@$lower ? $lower : undef);
+           (@$lower ? $lower : undef),
+           { resolution => $resolution };
 }
 
 sub key_signature {
@@ -543,13 +550,13 @@ sub generate {
     my ($opts, @events) = @_;
     my $key = $opts->{key} // Lilith::KeyGuesser::guess(@events)->[0];
     LOGN "Guessed key: $key";
-    my ($upper, $lower) = get_notes($opts, @events);
+    my ($upper, $lower, $meta) = get_notes($opts, @events);
     my $tempo = $opts->{tempo} // ($upper ? guess_tempo(@$upper) : guess_tempo(@$lower));
     LOGN "Guessed tempo: $tempo";
 
     my $lilypond = to_lilypond($key, $tempo, $upper, $lower, $opts);
     if (wantarray) {
-        return $lilypond, { tempo => $tempo };
+        return $lilypond, { %$meta, tempo => $tempo };
     }
     return $lilypond;
 }

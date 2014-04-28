@@ -11,6 +11,9 @@ use Lilith;
 use File::Temp 'tmpnam';
 use IPC::Open3;
 use Cwd;
+use utf8;
+
+my $LILYPOND_HELP_URL = 'http://lilypond.org/doc/v2.18/Documentation/learning-big-page.html';
 
 my $win = Gtk2::Window->new('toplevel');
 $win->signal_connect(delete_event => sub { Gtk2->main_quit });
@@ -18,6 +21,7 @@ $win->show_all;
 
 my $file_entry;
 my $tempo_entry;
+my $resolution_entry;
 my $editor;
 my $cli_frame;
 my $cli_log;
@@ -75,6 +79,7 @@ sub load_midi {
         my ($lilypond, $meta) = Lilith::generate({ get_opts() }, $track->events);
         $editor->get_buffer->set_text($lilypond);
         $tempo_entry->set_text($meta->{tempo});
+        $resolution_entry->set_text($meta->{resolution});
         $statusbar->push(0, "$filename opened");
         generate_preview;
     } catch {
@@ -88,15 +93,96 @@ sub get_opts {
     my @hand_div = ('auto', 'simple', 'tracing');
     my $tempo = $tempo_entry->get_text;
     $tempo = undef if ($tempo eq '');
+    my $resolution = $resolution_entry->get_text;
+    $resolution = undef if ($resolution eq '');
     return (
         omit_version => 1,
         hand_division => $hand_div[$hand_division->get_active],
         tempo => $tempo,
+        resolution => $resolution,
     );
 }
 
 my $vbox = Gtk2::VBox->new;
 {
+    my $menu = Gtk2::MenuBar->new;
+    {
+        my $file_item = Gtk2::MenuItem->new("File");
+        my $file_menu = Gtk2::Menu->new;
+        $file_item->set_submenu($file_menu);
+        my $save_lily = Gtk2::MenuItem->new("Save lilypond");
+        $save_lily->signal_connect(activate => sub {
+            my $dialog = Gtk2::FileChooserDialog->new(
+                'Save lilypond', $win, 'save', 'gtk-cancel' => 'cancel', 'gtk-ok' => 'ok');
+            $dialog->set_current_folder(getcwd);
+
+            if ('ok' eq $dialog->run) {
+                my $filename = $dialog->get_filename;
+                open(my $fh, '>', $filename);
+                print $fh $Lilith::LILYPOND_VERSION, "\n";
+                my $buf = $editor->get_buffer;
+                my $text = $buf->get_text($buf->get_start_iter, $buf->get_end_iter, 1);
+                print $fh $text;
+                close($fh);
+            }
+            $dialog->destroy;
+        });
+        my $save_pdf  = Gtk2::MenuItem->new("Export to PDF");
+        $save_pdf->signal_connect(activate => sub {
+            my $dialog = Gtk2::FileChooserDialog->new(
+                'Export to PDF', $win, 'save', 'gtk-cancel' => 'cancel', 'gtk-ok' => 'ok');
+            $dialog->set_current_folder(getcwd);
+
+            if ('ok' eq $dialog->run) {
+                my $filename = $dialog->get_filename;
+                $filename =~ s/\.pdf$//; # lilypond is stupid and adds .pdf on its own
+                open(my $fh, '|-', "lilypond --pdf -s -o $filename -");
+                print $fh $Lilith::LILYPOND_VERSION, "\n";
+                my $buf = $editor->get_buffer;
+                my $text = $buf->get_text($buf->get_start_iter, $buf->get_end_iter, 1);
+                print $fh $text;
+                close($fh);
+            }
+            $dialog->destroy;
+        });
+        $file_menu->append($save_lily);
+        $file_menu->append($save_pdf);
+        $menu->append($file_item);
+
+        my $help_item = Gtk2::MenuItem->new("Help");
+        my $help_menu = Gtk2::Menu->new;
+        $help_item->set_submenu($help_menu);
+        my $lily_help = Gtk2::MenuItem->new("Lilypond help");
+        $lily_help->signal_connect(activate => sub {
+            my $browser = $ENV{BROWSER};
+            if ($browser) {
+                exec("$browser $LILYPOND_HELP_URL") unless fork;
+            } else {
+                my $dialog = Gtk2::MessageDialog->new(
+                    $win, 'destroy-with-parent', 'info', 'ok',
+                    "Unable to detect a suitable web browser\n"
+                    ."Please navigate to $LILYPOND_HELP_URL manually"
+                );
+                $dialog->run;
+                $dialog->destroy;
+            }
+        });
+        my $about = Gtk2::MenuItem->new("About Lilith");
+        $about->signal_connect(activate => sub {
+            my $dialog = Gtk2::MessageDialog->new(
+                $win, 'destroy-with-parent', 'info', 'ok',
+                "Lilith, a music sheet generator\n"
+                ."Copyright Tadeusz Sośnierz 2014"
+            );
+            $dialog->run;
+            $dialog->destroy;
+        });
+        $help_menu->append($lily_help);
+        $help_menu->append($about);
+        $menu->append($help_item);
+    }
+    $vbox->pack_start($menu, 0, 0, 0);
+
     my $hbox = Gtk2::HBox->new;
     $file_entry = Gtk2::Entry->new;
     $file_entry->set_editable(0);
@@ -152,22 +238,21 @@ my $vbox = Gtk2::VBox->new;
     $vbox->pack_start($hbox, 0, 0, 0);
 }
 {
-    my $button = Gtk2::Button->new;
-    my $align = Gtk2::Alignment->new(0.5, 0, 0, 0);
-    my $hbox = Gtk2::HBox->new;
-    $hbox->pack_start(Gtk2::Label->new('Generate music sheet'), 0, 0, 0);
-    $hbox->pack_start(Gtk2::Image->new_from_stock('gtk-apply', 'menu'), 0, 0, 0);
-    $align->add($hbox);
-    $button->add($align);
-    $button->signal_connect(clicked => sub { generate_preview });
-
-    $vbox->pack_start($button, 0, 0, 0);
-}
-{
     my $hbox = Gtk2::HBox->new;
     my $label = Gtk2::Label->new("Tempo:");
     $tempo_entry = Gtk2::Entry->new;
-    $tempo_entry->signal_connect(activate => sub { load_midi() });
+    $tempo_entry->signal_connect(activate => sub {
+        if ($tempo_entry->get_text() =~ m{\d+/\d+}) {
+            load_midi()
+        } else {
+            my $dialog = Gtk2::MessageDialog->new(
+                $win, 'destroy-with-parent', 'error', 'ok',
+                "Tempo does not appear to be in a correct format"
+            );
+            $dialog->run;
+            $dialog->destroy;
+        }
+    });
     $hbox->pack_start($label, 0, 0, 0);
     $hbox->pack_start($tempo_entry, 0, 0, 0);
 
@@ -183,6 +268,23 @@ my $vbox = Gtk2::VBox->new;
     $hbox->pack_start($label, 0, 0, 0);
     $hbox->pack_start($hand_division, 0, 0, 0);
 
+    $label = Gtk2::Label->new("Resolution:");
+    $resolution_entry = Gtk2::Entry->new;
+    $resolution_entry->signal_connect(activate => sub {
+        if ($resolution_entry->get_text() =~ m{\d+}) {
+            load_midi()
+        } else {
+            my $dialog = Gtk2::MessageDialog->new(
+                $win, 'destroy-with-parent', 'error', 'ok',
+                "Resolution does not appear to be in a correct format"
+            );
+            $dialog->run;
+            $dialog->destroy;
+        }
+    });
+    $hbox->pack_start($label, 0, 0, 0);
+    $hbox->pack_start($resolution_entry, 0, 0, 0);
+
     $vbox->pack_start($hbox, 0, 0, 0);
 }
 {
@@ -191,6 +293,18 @@ my $vbox = Gtk2::VBox->new;
     my $editor_frame = Gtk2::Frame->new('Lilypond editor');
 
     my $editor_box = Gtk2::VBox->new;
+    {
+        my $button = Gtk2::Button->new;
+        my $align = Gtk2::Alignment->new(0.5, 0, 0, 0);
+        my $hbox = Gtk2::HBox->new;
+        $hbox->pack_start(Gtk2::Label->new('Generate music sheet'), 0, 0, 0);
+        $hbox->pack_start(Gtk2::Image->new_from_stock('gtk-apply', 'menu'), 0, 0, 0);
+        $align->add($hbox);
+        $button->add($align);
+        $button->signal_connect(clicked => sub { generate_preview });
+
+        $editor_box->pack_start($button, 0, 0, 0);
+    }
     $editor = Gtk2::TextView->new;
     $editor_box->pack_start($editor, 1, 1, 0);
 
@@ -214,7 +328,6 @@ my $vbox = Gtk2::VBox->new;
     $snr_box->add($but);
     $snr_frame->add($snr_box);
     $editor_box->pack_start($snr_frame, 0, 0, 0);
-
     $editor_frame->add($editor_box);
 
     $hpaned->add1($editor_frame);
