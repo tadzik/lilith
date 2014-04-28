@@ -67,7 +67,7 @@ sub generate_preview {
     }
 }
 
-sub load_midi {
+my $load_midi = sub {
     my $filename = shift // $file_entry->get_text() // return;
     $file_entry->set_text($filename);
 
@@ -89,7 +89,7 @@ sub load_midi {
         $cli_frame->set_expanded(1);
         $statusbar->push(0, 'Something went wrong!');
     }
-}
+};
 
 sub get_opts {
     my @hand_div = ('auto', 'simple', 'tracing');
@@ -197,7 +197,17 @@ my $vbox = Gtk2::VBox->new;
 
         if ('ok' eq $dialog->run) {
             my $filename = $dialog->get_filename;
-            load_midi($filename);
+            $tempo_entry->set_text('');
+            $resolution_entry->set_text('');
+            # Worst. Hack. Ever
+            # Unfortunately, Gtk doesn't let us distinguish between the user-generated combobox
+            # state switch, and code-generated one: "changed" signal catches both. So, we'll just
+            # "turn off" load midi for a moment
+            my $old = $load_midi;
+            $load_midi = sub {};
+            $hand_division->set_active(0);
+            $load_midi = $old;
+            $load_midi->($filename);
         }
         $dialog->destroy;
     });
@@ -231,7 +241,7 @@ my $vbox = Gtk2::VBox->new;
         $dialog->run();
         $dialog->destroy();
         kill 'TERM', $pid;
-        load_midi($tmpfile);
+        $load_midi->($tmpfile);
     });
     $hbox->add($file_entry);
     $hbox->pack_start($open_button, 0, 0, 0);
@@ -245,7 +255,7 @@ my $vbox = Gtk2::VBox->new;
     $tempo_entry = Gtk2::Entry->new;
     $tempo_entry->signal_connect(activate => sub {
         if ($tempo_entry->get_text() =~ m{\d+/\d+}) {
-            load_midi()
+            $load_midi->()
         } else {
             my $dialog = Gtk2::MessageDialog->new(
                 $win, 'destroy-with-parent', 'error', 'ok',
@@ -266,7 +276,7 @@ my $vbox = Gtk2::VBox->new;
     $hand_division->append_text("Simple");
     $hand_division->append_text("Tracing");
     $hand_division->set_active(0);
-    $hand_division->signal_connect(changed => sub { load_midi() });
+    $hand_division->signal_connect(changed => sub { $load_midi->() });
     $hbox->pack_start($label, 0, 0, 0);
     $hbox->pack_start($hand_division, 0, 0, 0);
 
@@ -274,7 +284,7 @@ my $vbox = Gtk2::VBox->new;
     $resolution_entry = Gtk2::Entry->new;
     $resolution_entry->signal_connect(activate => sub {
         if ($resolution_entry->get_text() =~ m{\d+}) {
-            load_midi()
+            $load_midi->()
         } else {
             my $dialog = Gtk2::MessageDialog->new(
                 $win, 'destroy-with-parent', 'error', 'ok',
