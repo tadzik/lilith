@@ -7,6 +7,8 @@ use File::Temp 'tempfile';
 use Data::Dumper;
 use Carp::Always;
 
+our $LILYPOND_VERSION = '\\version "2.16.2"';
+
 # fun fact: it's not really a mean =)
 # a real mean yields idiotic results, when it happens to compute average time of 1/8 and 1/4
 sub mean {
@@ -215,6 +217,15 @@ sub rate_hand_division {
 }
 
 sub divide_hands {
+    my $conf = shift;
+    {
+        no warnings 'uninitialized';
+        if ($conf->{hand_division} eq 'simple') {
+            return divide_hands_simple(@_)
+        } elsif ($conf->{hand_division} eq 'tracing') {
+            return divide_hands_tracing(@_)
+        }
+    }
     # let's try both and see which is better
     my ($upper_s, $lower_s) = divide_hands_simple(@_);
     my ($upper_t, $lower_t) = divide_hands_tracing(@_);
@@ -371,7 +382,7 @@ sub rate_notes {
 }
 
 sub get_notes {
-    my @events = @_;
+    my ($conf, @events) = @_;
 
     my $resolution = 55;
     my @best = get_notes_polling(30, @events);
@@ -390,7 +401,7 @@ sub get_notes {
     
     #say "Best score is $bestscore";
 
-    my ($upper, $lower) = divide_hands(@best);
+    my ($upper, $lower) = divide_hands($conf, @best);
 
     return (@$upper ? $upper : undef),
            (@$lower ? $lower : undef);
@@ -463,7 +474,7 @@ sub hand_to_lilypond {
 }
 
 sub to_lilypond_simple {
-    my ($key, $time, $upper, $lower) = @_;
+    my ($key, $time, $upper, $lower, $conf) = @_;
     my ($source, $clef);
     if ($upper) {
         $clef = '\clef "treble"';
@@ -472,21 +483,23 @@ sub to_lilypond_simple {
         $clef = '\clef "bass"';
         $source = $lower;
     }
-    sprintf q[\version "2.16.2" {
+    my $version = $conf->{omit_version} ? '' : $LILYPOND_VERSION;
+    sprintf q[%s {
     %s
     %s
     \time %s
     %s
-}], $key, $clef, $time, hand_to_lilypond($time, @$source);
+}], $version, $key, $clef, $time, hand_to_lilypond($time, @$source);
 }
 
 sub to_lilypond {
-    my ($key, $time, $upper, $lower) = @_;
+    my ($key, $time, $upper, $lower, $conf) = @_;
     $key = key_signature($key);
     if (defined($upper) + defined($lower) < 2) {
-        return to_lilypond_simple($key, $time, $upper, $lower);
+        return to_lilypond_simple($key, $time, $upper, $lower, $conf);
     }
-    sprintf q[\\version "2.16.2"
+    my $version = $conf->{omit_version} ? '' : $LILYPOND_VERSION;
+    sprintf q[%s
 upper = {
     %s
     \clef "treble"
@@ -504,7 +517,8 @@ lower = {
         \new Staff = "lower" \lower
     >>
     \layout { }
-}], $key, hand_to_lilypond($time, @$upper),
+}], $version,
+    $key, hand_to_lilypond($time, @$upper),
     $key, hand_to_lilypond($time, @$lower), $time;
 }
 
@@ -529,11 +543,15 @@ sub generate {
     my ($opts, @events) = @_;
     my $key = $opts->{key} // Lilith::KeyGuesser::guess(@events)->[0];
     LOGN "Guessed key: $key";
-    my ($upper, $lower) = get_notes(@events);
+    my ($upper, $lower) = get_notes($opts, @events);
     my $tempo = $opts->{tempo} // ($upper ? guess_tempo(@$upper) : guess_tempo(@$lower));
     LOGN "Guessed tempo: $tempo";
 
-    return to_lilypond($key, $tempo, $upper, $lower);
+    my $lilypond = to_lilypond($key, $tempo, $upper, $lower, $opts);
+    if (wantarray) {
+        return $lilypond, { tempo => $tempo };
+    }
+    return $lilypond;
 }
 
 sub generate_pdf {

@@ -16,36 +16,90 @@ my $win = Gtk2::Window->new('toplevel');
 $win->signal_connect(delete_event => sub { Gtk2->main_quit });
 $win->show_all;
 
+my $file_entry;
+my $tempo_entry;
 my $editor;
 my $cli_frame;
 my $cli_log;
 my $statusbar;
 my $current_image;
 my $preview;
+my $hand_division;
+
+sub generate_preview {
+    my $tmpfile = tmpnam;
+    my ($wtr, $rdr, $err);
+    my $pid = open3($wtr, $rdr, $err, "lilypond --png -s -o $tmpfile -");
+    my $buf = $editor->get_buffer;
+    $statusbar->push(0, 'Generating preview');
+    print $wtr $Lilith::LILYPOND_VERSION, "\n";
+    print $wtr $buf->get_text($buf->get_start_iter, $buf->get_end_iter, 1);
+    close $wtr;
+    waitpid($pid, 0);
+    my $output = '';
+    if (defined $rdr) {
+        while (<$rdr>) {
+            $output .= $_
+        }
+        close $rdr;
+    }
+    if (defined $err) {
+        while (<$err>) {
+            $output .= $_
+        }
+        close $err;
+    }
+    if ($output) {
+        $cli_log->get_buffer->set_text($output);
+        $cli_frame->set_expanded(1);
+        $statusbar->push(0, 'Something went wrong!');
+    } else {
+        $cli_log->get_buffer->set_text('');
+        $cli_frame->set_expanded(0);
+
+        $current_image->set_from_file("$tmpfile.png");
+
+        $statusbar->push(0, 'Preview generated successfully');
+    }
+}
+
+sub load_midi {
+    my $filename = shift // $file_entry->get_text() // return;
+    $file_entry->set_text($filename);
+
+    try {
+        $cli_log->get_buffer->set_text('');
+        $cli_frame->set_expanded(0);
+        my $o = MIDI::Opus->new({ from_file => $filename });
+        my $track = ($o->tracks)[0];
+        my ($lilypond, $meta) = Lilith::generate({ get_opts() }, $track->events);
+        $editor->get_buffer->set_text($lilypond);
+        $tempo_entry->set_text($meta->{tempo});
+        $statusbar->push(0, "$filename opened");
+        generate_preview;
+    } catch {
+        $cli_log->get_buffer->set_text("Failed to generate lilypond from $filename:\n\t$_");
+        $cli_frame->set_expanded(1);
+        $statusbar->push(0, 'Something went wrong!');
+    }
+}
+
+sub get_opts {
+    my @hand_div = ('auto', 'simple', 'tracing');
+    my $tempo = $tempo_entry->get_text;
+    $tempo = undef if ($tempo eq '');
+    return (
+        omit_version => 1,
+        hand_division => $hand_div[$hand_division->get_active],
+        tempo => $tempo,
+    );
+}
 
 my $vbox = Gtk2::VBox->new;
 {
     my $hbox = Gtk2::HBox->new;
-    my $entry = Gtk2::Entry->new;
-    $entry->set_editable(0);
-
-    my $load_midi = sub {
-        my $filename = shift;
-        $entry->set_text($filename);
-
-        try {
-            $cli_log->get_buffer->set_text('');
-            $cli_frame->set_expanded(0);
-            my $o = MIDI::Opus->new({ from_file => $filename });
-            my $track = ($o->tracks)[0];
-            $editor->get_buffer->set_text(Lilith::generate({}, $track->events));
-            $statusbar->push(0, "$filename opened");
-        } catch {
-            $cli_log->get_buffer->set_text("Failed to generate lilypond from $filename:\n\t$_");
-            $cli_frame->set_expanded(1);
-            $statusbar->push(0, 'Something went wrong!');
-        }
-    };
+    $file_entry = Gtk2::Entry->new;
+    $file_entry->set_editable(0);
 
     my $open_button = Gtk2::Button->new_from_stock('gtk-open');
     $open_button->signal_connect(clicked => sub {
@@ -55,7 +109,7 @@ my $vbox = Gtk2::VBox->new;
 
         if ('ok' eq $dialog->run) {
             my $filename = $dialog->get_filename;
-            $load_midi->($filename);
+            load_midi($filename);
         }
         $dialog->destroy;
     });
@@ -89,9 +143,9 @@ my $vbox = Gtk2::VBox->new;
         $dialog->run();
         $dialog->destroy();
         kill 'TERM', $pid;
-        $load_midi->($tmpfile);
+        load_midi($tmpfile);
     });
-    $hbox->add($entry);
+    $hbox->add($file_entry);
     $hbox->pack_start($open_button, 0, 0, 0);
     $hbox->pack_start($record_button, 0, 0, 0);
 
@@ -105,43 +159,31 @@ my $vbox = Gtk2::VBox->new;
     $hbox->pack_start(Gtk2::Image->new_from_stock('gtk-apply', 'menu'), 0, 0, 0);
     $align->add($hbox);
     $button->add($align);
-    $button->signal_connect(clicked => sub {
-        my $tmpfile = tmpnam;
-        my ($wtr, $rdr, $err);
-        my $pid = open3($wtr, $rdr, $err, "lilypond --png -s -o $tmpfile -");
-        my $buf = $editor->get_buffer;
-        $statusbar->push(0, 'Generating preview');
-        print $wtr $buf->get_text($buf->get_start_iter, $buf->get_end_iter, 1);
-        close $wtr;
-        waitpid($pid, 0);
-        my $output = '';
-        if (defined $rdr) {
-            while (<$rdr>) {
-                $output .= $_
-            }
-            close $rdr;
-        }
-        if (defined $err) {
-            while (<$err>) {
-                $output .= $_
-            }
-            close $err;
-        }
-        if ($output) {
-            $cli_log->get_buffer->set_text($output);
-            $cli_frame->set_expanded(1);
-            $statusbar->push(0, 'Something went wrong!');
-        } else {
-            $cli_log->get_buffer->set_text('');
-            $cli_frame->set_expanded(0);
-
-            $current_image->set_from_file("$tmpfile.png");
-
-            $statusbar->push(0, 'Preview generated successfully');
-        }
-    });
+    $button->signal_connect(clicked => sub { generate_preview });
 
     $vbox->pack_start($button, 0, 0, 0);
+}
+{
+    my $hbox = Gtk2::HBox->new;
+    my $label = Gtk2::Label->new("Tempo:");
+    $tempo_entry = Gtk2::Entry->new;
+    $tempo_entry->signal_connect(activate => sub { load_midi() });
+    $hbox->pack_start($label, 0, 0, 0);
+    $hbox->pack_start($tempo_entry, 0, 0, 0);
+
+    $hbox->pack_start(Gtk2::HSeparator->new, 0, 0, 0);
+
+    $label = Gtk2::Label->new("Hand division method:");
+    $hand_division = Gtk2::ComboBox->new_text;
+    $hand_division->append_text("Automatic");
+    $hand_division->append_text("Simple");
+    $hand_division->append_text("Tracing");
+    $hand_division->set_active(0);
+    $hand_division->signal_connect(changed => sub { load_midi() });
+    $hbox->pack_start($label, 0, 0, 0);
+    $hbox->pack_start($hand_division, 0, 0, 0);
+
+    $vbox->pack_start($hbox, 0, 0, 0);
 }
 {
     my $inner_vbox = Gtk2::VBox->new;
