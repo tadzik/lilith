@@ -80,6 +80,8 @@ sub load_midi {
         $editor->get_buffer->set_text($lilypond);
         $tempo_entry->set_text($meta->{tempo});
         $resolution_entry->set_text($meta->{resolution});
+        my %method_to_index = (simple => 1, tracing => 2);
+        $hand_division->set_active($method_to_index{$meta->{hand_division}});
         $statusbar->push(0, "$filename opened");
         generate_preview;
     } catch {

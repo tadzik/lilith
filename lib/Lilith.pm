@@ -162,7 +162,7 @@ sub divide_hands_simple {
     unless ($lower_legit) {
         @lower = ()
     }
-    return \@upper, \@lower
+    return \@upper, \@lower, { hand_division => 'simple' }
 }
 
 sub divide_hands_tracing {
@@ -201,7 +201,7 @@ sub divide_hands_tracing {
     unless ($lower_legit) {
         @lower = ()
     }
-    return \@upper, \@lower
+    return \@upper, \@lower, { hand_division => 'tracing' }
 }
 
 sub rate_hand_division {
@@ -227,20 +227,20 @@ sub divide_hands {
         }
     }
     # let's try both and see which is better
-    my ($upper_s, $lower_s) = divide_hands_simple(@_);
-    my ($upper_t, $lower_t) = divide_hands_tracing(@_);
+    my @result_s = divide_hands_simple(@_);
+    my @result_t = divide_hands_tracing(@_);
     # lower is better
-    my $score_s = rate_hand_division($upper_s, $lower_s);
-    my $score_t = rate_hand_division($upper_t, $lower_t);
+    my $score_s = rate_hand_division(@result_s);
+    my $score_t = rate_hand_division(@result_t);
     LOGN "Score for simple  method: $score_s";
     LOGN "Score for tracing method: $score_t";
 
     if ($score_s < $score_t) {
         LOGN "Simple wins";
-        return $upper_s, $lower_s
+        return @result_s
     } else {
         LOGN "Tracing wins";
-        return $upper_t, $lower_t
+        return @result_t
     }
 }
 
@@ -407,11 +407,11 @@ sub get_notes {
     }
     #say "Best score is $bestscore";
 
-    my ($upper, $lower) = divide_hands($conf, @notes);
+    my ($upper, $lower, $meta) = divide_hands($conf, @notes);
 
     return (@$upper ? $upper : undef),
            (@$lower ? $lower : undef),
-           { resolution => $resolution };
+           { %$meta, resolution => $resolution };
 }
 
 sub key_signature {
