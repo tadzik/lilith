@@ -17,7 +17,8 @@ my $LILYPOND_HELP_URL = 'http://lilypond.org/doc/v2.18/Documentation/learning-bi
 
 my $win = Gtk2::Window->new('toplevel');
 $win->signal_connect(delete_event => sub { Gtk2->main_quit });
-$win->show_all;
+my $accel_group = Gtk2::AccelGroup->new;
+$win->add_accel_group($accel_group);
 
 my $file_entry;
 my $tempo_entry;
@@ -29,6 +30,11 @@ my $statusbar;
 my $current_image;
 my $preview;
 my $hand_division;
+
+my $save_history = 1;
+my @history;
+my @undone;
+my $last_entry = 0;
 
 sub generate_preview {
     my $tmpfile = tmpnam;
@@ -67,7 +73,9 @@ sub generate_preview {
     }
 }
 
-my $load_midi = sub {
+my $load_midi;
+$load_midi = sub {
+    say "Loading midi";
     my $filename = shift // $file_entry->get_text() // return;
     $file_entry->set_text($filename);
 
@@ -77,11 +85,18 @@ my $load_midi = sub {
         my $o = MIDI::Opus->new({ from_file => $filename });
         my $track = ($o->tracks)[0];
         my ($lilypond, $meta) = Lilith::generate({ get_opts() }, $track->events);
+        $save_history = 0;
         $editor->get_buffer->set_text($lilypond);
+        push @history, $lilypond;
+        $save_history = 1;
         $tempo_entry->set_text($meta->{tempo});
         $resolution_entry->set_text($meta->{resolution});
         my %method_to_index = (simple => 1, tracing => 2);
+        # Look forward for "worst hack ever"
+        my $old = $load_midi;
+        $load_midi = sub {};
         $hand_division->set_active($method_to_index{$meta->{hand_division}});
+        $load_midi = $old;
         $statusbar->push(0, "$filename opened");
         generate_preview;
     } catch {
@@ -150,6 +165,37 @@ my $vbox = Gtk2::VBox->new;
         $file_menu->append($save_lily);
         $file_menu->append($save_pdf);
         $menu->append($file_item);
+
+        my $edit_item = Gtk2::MenuItem->new("Edit");
+        my $edit_menu = Gtk2::Menu->new;
+        $edit_item->set_submenu($edit_menu);
+        my $undo = Gtk2::MenuItem->new("Undo");
+        my $redo = Gtk2::MenuItem->new("Redo");
+        $undo->signal_connect(activate => sub {
+            $save_history = 0;
+            push @undone, pop(@history) if @history;
+            if (@history) {
+                $editor->get_buffer->set_text($history[$#history])
+            } else {
+                $editor->get_buffer->set_text('');
+            }
+            $save_history = 1;
+        });
+        $undo->add_accelerator('activate', $accel_group, 122, 'control-mask', 'visible');
+        $redo->signal_connect(activate => sub {
+            $save_history = 0;
+            if (@undone) {
+                my $new = pop @undone;
+                $editor->get_buffer->set_text($new);
+                push @history, $new;
+            }
+            $save_history = 1;
+        });
+        $redo->add_accelerator('activate', $accel_group, 122, ['control-mask', 'shift-mask'],
+                               'visible');
+        $edit_menu->append($undo);
+        $edit_menu->append($redo);
+        $menu->append($edit_item);
 
         my $help_item = Gtk2::MenuItem->new("Help");
         my $help_menu = Gtk2::Menu->new;
@@ -318,6 +364,17 @@ my $vbox = Gtk2::VBox->new;
         $editor_box->pack_start($button, 0, 0, 0);
     }
     $editor = Gtk2::TextView->new;
+    $editor->get_buffer->signal_connect(changed => sub {
+        return unless $save_history;
+        #return if (time - $last_entry < 1);
+        $last_entry = time;
+        my $buf = $editor->get_buffer;
+        my $text = $buf->get_text($buf->get_start_iter, $buf->get_end_iter, 1);
+        push @history, $text;
+        if (@history > 5) {
+            shift @history;
+        }
+    });
     $editor_box->pack_start($editor, 1, 1, 0);
 
     my $snr_frame = Gtk2::Frame->new('Search & Replace');
@@ -334,8 +391,15 @@ my $vbox = Gtk2::VBox->new;
         my $replacement = $rep->get_text;
         my $buf = $editor->get_buffer;
         my $text = $buf->get_text($buf->get_start_iter, $buf->get_end_iter, 1);
-        $text =~ s/$pattern/eval $replacement/ge;
+        if (defined eval $replacement) {
+            $text =~ s/$pattern/eval $replacement/ge;
+        } else {
+            $text =~ s/$pattern/$replacement/ge;
+        }
+        $save_history = 0;
         $buf->set_text($text);
+        push @history, $text;
+        $save_history = 1;
     });
     $snr_box->add($but);
     $snr_frame->add($snr_box);
