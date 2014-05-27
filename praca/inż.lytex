@@ -1,0 +1,847 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[polish]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\title{Generowanie arkuszy muzycznych na podstawie sygnału MIDI z instrumentów klawiszowych}
+\author{Tadeusz Sośnierz}
+\date{}
+\begin{document}
+
+\maketitle
+
+\newpage
+\section{Wprowadzenie do zapisu nutowego}
+
+Poniższy rozdział ma na celu wyjaśnienie podstawowych pojęć muzycznych,
+na których operować będzie dalsza część pracy. Wyjaśni też, jakie trudności
+wynikają z niezdefiniowanych formalnie elementów tej dziedziny sztuki.
+
+Zapis nutowy jest graficzną reprezentacją utworu muzycznego. 
+Składa się on z \emph{pięciolinii} -- pięciu poziomych linii, oraz znaków na niej.
+Utwory często składają się z kilku pięciolinii połączonych klamrą, co oznacza, że
+grane są one równocześnie. W przypadku pianina używane są zazwyczaj dwie pięciolinie:
+jedna dla lewej, a jedna dla prawej ręki.
+
+Naistotniejszą rzeczą znajdującą się na pięciolinii są \emph{nuty}, opisujące długość
+oraz wysokość dźwięków w utworze, jak również symbole takie jak pauzy (cisze w utworze),
+oraz inne symbole takie jak oznaczenia tempa, tonacji czy głośności utworu.
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    upper = {
+        \key d \major
+        \clef "treble"
+    r2 a'8 b'8 cis''4 | e''4 e''4 d''8 cis''8 b'8. a'16 | b'8 cis''8 b'4 r8 a'8 b'8. a'16 | b'8 cis''8 fis'4 r8 a'8 b'8. a'16
+      
+    }
+    lower = {
+        \key d \major
+        \clef "bass"
+    r2 r4 a,8 e8 | a8 e8 b,8 fis8 b8 fis8 g,8 d8 | g8 d8 d,8 a,8 d8 a,8 b,8 fis8 | b8 fis8 fis,8 c8 fis8 c8 b,8 fis8
+    }
+    \score {
+        \new PianoStaff <<
+            \time 4/4
+            \new Staff = "upper" \upper
+            \new Staff = "lower" \lower
+        >>
+        \layout { }
+    }
+    \end{lilypond}
+    \label{fig:worms_theme}
+    \caption{Przykład zapisu nutowego}
+\end{figure}
+
+
+Każda nuta reprezentuje jeden dźwięk występujący w utworze -- jego długość oraz
+wysokość. Długość dźwięku zależy od wyglądu samej nuty, wysokość zaś od pozycji (pionowej)
+nuty na pięciolinii. Odległości w poziomie pomiędzy znakami na pięciolinii nie mają znaczenia.
+
+Nuty dzielimy pod kątem długości dźwięku na całe nuty, półnuty, ćwierćnuty, ósemki,
+szesnastki itd, gdzie półnuta ma długość połowy całej nuty, ćwierćnuta oznacza jedną
+czwartą całej nuty itd. Faktyczna długość całej nuty (np. w milisekundach) nie jest
+zazwyczaj precyzyjnie określona; O ile w niektórych arkuszach muzycznych można spotkać
+adnotację, określającą ile
+dokładnie uderzeń na minutę (?) przekłada się na jedną całą nutę, zazwyczaj
+informację tę pomija się, pozostawiając ją do interpretacji wykonawcy utworu.
+Przeważnie jedynym, co informuje muzyka o tempie grania utworu jest
+umieszczenie na początku arkusza włoskiego słowa określającego zamierzoną
+prędkość utworu (np. \emph{Largo} oznaczające wolno, \emph{Allegro} -- szybko, czy
+\emph{Andante}, będące w przybliżeniu tempem osoby idącej pieszo).
+
+Jak widać więc,
+faktyczna długość poszczególnych nut podlega dość luźnej interpretacji, zarówno
+podczas wykonywania utworu, jak również podczas zapisywania utworu w zapisie nutowym.
+Przełozenie nagranych dźwięków na oczekiwane przez użytkownika nuty jest jednym z problemów,
+z którymi boryka się opisywany w tej pracy program.
+
+O wartości nuty decyduje jej wypełnienie, obecność pionowej laski oraz ilość chorągiewek.
+Cała nuta zapisywana jest jako pusta w środku elipsa. Półnuta to cała nuta ozdobiona
+pionową laską (w górę lub w dół; zwrot ma jedynie znaczenie estetyczne). Ćwierćnuta
+ma taki sam symbol jak półnuta, jednak elipsa jest wypełniona. Ósemki, szesnastki itd.
+oznaczane są dodawaniem do symbolu ćwierćnuty chorągiewek: jednej w przypadku ósemki,
+dwóch dla szesnastki i tak dalej. Zapisując wiele ósemek lub krótszych nut obok siebie
+można połączyć je belkami, których ilość odpowiada ilości chorągiewiek dla danego typu
+nuty.
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        g'1 g'2 g'4 g'8 g'16
+    }
+    \end{lilypond}
+    \caption{Różne długości nut: cała nuta, półnuta, ćwierćnuta, ósemka, szesnastka}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        g'8 g'8 g'16 g'16 g'16 g'16
+    }
+    \end{lilypond}
+    \caption{Ósemki i szesnastki połączone belkami}
+\end{figure}
+
+Obok każdej nuty można zapisać kropkę. Kropka oznacza, iż nuta jej odpowiadająca ma mieć
+długość o połowę dłuższą -- tak więc ćwierćnuta z kropką ma długość jednej ćwierćnuty i
+jednej ósemki.
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        g'4.
+    }
+    \end{lilypond}
+    \caption{Ćwierćnuta z kropką}
+\end{figure}
+
+Aby zaznaczyć w zapisie nutowym ciszę w utworze używa się \emph{pauz}. Pauzy mają takie
+same długości jak nuty, nie mają jednak wysokości.
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        r1 r2 r4 r8 r16 r32
+    }
+    \end{lilypond}
+    \caption{Pauzy: całonutowa, półnutowa, ćwierćnutowa, ósemkowa, szesnastkowa}
+\end{figure}
+
+Podobnie jak nuty, pauzy również mogą być okraszone kropkami. Zapisu takiego używa się
+jednak niezwykle rzadko, zastępując go po prostu dwiema pauzami. Przykład widzimy na
+rysunku~\ref{fig:worms_theme} w partii prawej ręki, gdzie pierwsze dwie pauzy możnaby
+teoretycznie zastąpić pauzą z kropką. Nie robi się tak jednak ze względów estetycznych.
+
+Podczas gdy wygląd nuty określa długość dźwięku, wysokość tegoż jest zależna od pionowej
+pozycji nuty na pięciolinii. Nuty mozemy zapisywać albo na liniach, albo pomiędzi nimi:
+na pięciolinii jest zatem 11 pozycji na których możemy umieścić nuty (licząc pozycję pod
+najniższą oraz nad najwyższą linią). Aby umieścić na pięciolinii większy zakres dźwięków
+dopisuje się dodatkowe kreski pod lub nad pięciolinią, zmieniając ją na pewnym odcinku
+w niejako „siedmiolinię” bądź „dziewięciolinię”.
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        c'8 d'8 e'8 f'8 g'8 a'8 b'8 c''8 c''8 d''8 e''8 f''8 g''8 a''8 b''8 c'''8
+    }
+    \end{lilypond}
+    \caption{Przykład linii dodanych}
+\end{figure}
+
+TODO: Coś o tym, że odległości na pięciolinii to jak białe klawisze w pianinie, czy cuś.
+
+Pianino, jak niemal każdy instrument, ma zakres dźwięków dużo większy niż pięciolinia.
+Aby określić którym dźwiękom odpowiadają które linie używa się \emph{klucza}. Różne klucze
+przypisują liniom konkretne dźwięki.
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        r2
+    }
+    \end{lilypond}
+    \caption{Klucz wiolinowy}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "bass"
+        r2
+    }
+    \end{lilypond}
+    \caption{Klucz basowy}
+\end{figure}
+
+Najczęściej stosowanym kluczem jest \emph{klucz wiolinowy}. Jest on również nazywany
+kluczem G: wyznaczany przez niego punkt odniesienia 
+znajduje się bowiem na drugiej od dołu linii, która
+to linia w~tym oto kluczu odpowiada dźwiękowi \begin{math} G_4 \end{math}. 
+\begin{math} C_4 \end{math} znajduje się w kluczu wiolinowym na pierwszej linii dodanej
+dolnej, \begin{math} C_5 \end{math} zaś na pozycji pomiędzy trzecią a czwartą linią
+(licząc od dołu). Klucz wiolinowy jest niemal zawsze używany przy partii utworu granej
+na pianinie prawą ręką.
+
+Klucz basowy (klucz F) jest zazwyczaj używany do zapisu partii lewej ręki: jego górny
+koniec wskazuje na dźwięk \begin{math} F_3 \end{math}. Dźwięk \begin{math} C_4 \end{math}
+znajduje się na pierwszej linii dodanej górnej, a \begin{math} C_3 \end{math} pomiędzy
+drugą a trzecią linią (od dołu).
+
+Zdarza się, że klucz zmienia się w trakcie utworu, zazwyczaj jednak jest on zapisywany
+jedynie raz, na samym początku pięciolinii, i pozostaje taki sam przez cały utwór aż
+do końca.
+
+Każdy utwór posiada \emph{metrum}, które definiuje nam jak wiele nut składa się na jeden
+\emph{takt}, jak również podpowiada wykonawcy jak rozkładać akcenty. Tempo zapisuje się
+zaraz za kluczem za pomocą dwóch liczb. Górna mówi ile nut będzie stanowić jeden takt,
+dolna zaś jakiego typu mają być to nuty. O tempie mówi się zwykle tak, jakby było ułamkiem
+(więc np. „trzy czwarte” bądź „cztery ósme”), mimo iż ułamkiem nie jest. W szczególności
+tempo 4/8 nie jest, jak mogłoby się wydawać, tym samym co 2/4 czy 1/2. Mimo, iż po takim
+skróceniu długość taktu pozostania taka sama, zmieni się sugerowane akcentowanie dźwięków.
+
+W przypadku generowania arkusza muzycznego akcenty w nagranym utworze nie zawsze będą na tyle
+wyraźne, aby poprawnie odgadnąć tempo utworu, toteż opisywany program często decyduje jedynie
+pomiędzy tempem 3/4 a 4/4, pozostawiając użytkownikowi możliwość poprawienia na prawidłowe.
+
+Tempo 4/4 zapisuje się zwykle w arkuszach muzycznych znakiem C (jak na rysunku poniżej).
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        g'4 g'4 g'4 g'4
+        g'4 g'4 g'4 g'4
+    }
+    \end{lilypond}
+    \caption{Tempo 4/4}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        \time 3/8
+        g'8 g'8 g'8
+        g'8 g'8 g'8
+    }
+    \end{lilypond}
+    \caption{Tempo 3/8}
+\end{figure}
+
+TODO: o tonacjach.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\section{Opis algorytmu}
+
+Opisany w niniejszym rozdzialne proces ma na celu przedstawienie w jaki
+sposób prymitywne i niskopoziomowe zdarzenia zawarte w strumieniu MIDI
+są zamieniane na czytelny i zrozumiały dla użytkownika zapis nutowy.
+
+Zadanie polega zatem nie tylko na poprawnym przełożeniu sekwencji
+naciskanych klawiszy odczytanych z MIDI na \emph{nuty} o odpowiedniej
+\emph{długości} i \emph{wysokości}, ale również na swoistym odgadnięciu
+zamiarów użytkownika i wygenerowanie takiego arkusza, który zagrany na
+instrumencie będzie odpowiadał dźwiękom uprzednio nagranym, ale również
+będzie wyglądał przejrzyście i będzie łatwy do śledzenia wzrokiem
+podczas grania.
+
+Tak jak kod źródłowy w języku programowania można formatować w różny
+sposób aby wpłynąć na jego czytelność, tak samo można wygenerować wiele
+arkuszy muzycznych dla tego samego utworu -- wszystkie równoważne, acz
+nie każdy z nich tak samo łatwy do odczytania.
+
+W poniższych podrozdziałach opisane zostaną szczegółowo kolejne kroki
+algorytmu, w takiej kolejności w jakiej są one wykonywane w programie.
+
+\subsection{Określenie tonacji utworu}
+
+\emph{Tonacja} utworu określana jest metodą statystyczną; liczone są ilości
+wystąpień każdego dźwięku w utworze, a następnie na podstawie tego,
+które z nich występują najczęściej odgadywana jest prawdopodobna tonacja
+wykonywanego utworu.
+
+
+Z każdego zdarzenia \texttt{note\_on}\footnote{wszystkie użyte nazwy
+zdarzeń odpowiadają API modułu MIDI} w strumieniu MIDI pobierany jest
+indeks klawisza. Ponieważ nieistotne jest, w której \emph{oktawie}
+znajduje się dźwięk, są one wszystkie normalizowane do najniższej oktawy
+(indeksy od 0 do 12).
+
+Zdarzenia \texttt{note\_off} są ignorowane; zawsze będzie ich dokładnie
+tyle samo, co \texttt{note\_on}, a na tym etapie nie dostarczają nam
+żadnej wartościowej informacji.
+
+% PRZYKŁAD ???
+Mając przygotowaną mapę częstotliwości dzięków, sprawdzane jest, które
+z nich są podwyższone bądź obniżone; ma to na celu wyznaczenie
+prawdopodobnych znaków przykluczowych, co niemal jednoznacznie przekłada
+się na tonację utworu. Przykładowo, jeśli w utworze częściej występuje
+dzwięk F\# niż F, oraz C\# częściej niż C, mamy do czynienia z tonacją
+D-dur bądź h-moll. Dokładne określenie o którą z nich chodzi może być z
+pewnym przybliżeniem określone na podstawie dźwięków kończących
+utwór (Nie jest to jednak zaimplementowane. TODO?).
+
+Krok ten możnaby w zasadzie wykonać w dowolnym innym momencie
+(przed wygenerowaniem zapisu w formacie Lilypond), tudzież
+równolegle z pozostałymi krokami; żaden z pozostałych kroków algorytmu
+nie korzysta z informacji o tonacji utworu.
+
+Powyższy algorytm okazuje się działać praktyczne bezbłędnie dla
+wszystkich testowanych utworów; jedynym wyjątkiem jest sytuacja, gdy
+tonacja utworu zmienia się w trakcie jego trwania: zdarza się, iż utwór
+ma refren grany w innej tonacji, niż zwrotkę\footnote{Przykładem jest
+\emph{Still Alive} Jonathana Coultona}. Algorytm owocuje wówczas
+częściowo poprawnym rozwiązaniem, będącym zazwyczaj pod- lub nadzbiorem
+obu tonacji. Nie jest to na szczęście wielki problem: tonacja jest
+trywialna do poprawienia w zapisie Lilypond, a nawet bez takiej poprawki
+poszczególne nuty niepasujące do odgadniętej tonacji będą oznaczone
+[krzyżykami lub bemolami: jak to się nazywa? FIXME], toteż zapis nutowy
+pozostanie poprawny.
+
+\subsection{Określanie długości i wysokości nut}
+
+Każda nuta w zapisie nutowym posiada zarówno wysokość, określoną przez
+jej wertykalną pozycję na pięciolinii i oznaczającą, jak sama nazwa
+wskazuje wysokość opisywanego dźwięku, jak i długość tegoż, o czym w
+reprezentacji graficznej mówi nam wypełnienie kropki oraz kształt jej
+„ogonka” (bądź jego brak). Na tym etapie nie jest jeszcze produkowana
+graficzna reprezentacja nut, produkowane są natomiast struktury danych
+przechowujące obie te informacje w celu dalszego przetwarzania.
+
+Określenie wysokości każdej nuty jest zadaniem trywialnym: indeks każdego
+klawisza zapisany w strumieniu MIDI odpowiada jednoznacznie dźwiękowi
+który się za nim kryje (przykładowo klawisz numer 62 jest zawsze
+odpowiednikiem dźwięku \begin{math} C_4 \end{math}).
+
+Długość dźwięków nie jest już jednak sprawą tak prostą.
+MIDI dostarcza nam informacji o tym, kiedy który klawisz został naciśnięty
+oraz kiedy został puszczony. Na podstawie analizy zdarzeń takich jak
+\texttt{set\_tempo} oraz zapisanego w każdym zdarzeniu przesunięcia
+czasowego możemy nawet wyliczyć, ile milisekund był grany każdy z dźwięków.
+Niestety, nawet tak dokładna informacja nie ma w praktyce żadnego przełożenia
+na wartości których szukamy. Długość nut w utworze nie jest bowiem wyrażana
+w jednostkach SI, a jest ona relatywna do innych nut. Mamy zatem całe nuty:
+nuty o pełnej długości, a nastepnie półnuty, ćwierćnuty i tak dalej. Nie
+istnieje referencyjna długość całej nuty: dla każdego utworu będzie ona nieco
+inna, zależna od tempa utworu.
+
+Jak zatem przełożyć długości dźwięków na długości nut? Jedynym wyjściem jest
+posłużenie się heurystyką -- wyznaczenie długości nut dla różnych
+[czasów? Jak to powiedzieć?], a następnie wybranie takiego wyniku który wydaje
+się najbardziej prawdopodobny. W dalszej części tego podrozdziału zostanie
+dokładnie opisane, w jaki sposób cząstkowe wyniki są oceniane, na razie skupmy
+się jednak na metodzie dochodzenia do każdego z nich.
+
+Długości nut są wyliczane metodą próbkowania. Wybieramy odgórnie długość jednej
+trzydziestodwójki (1/32 całej nuty), i dla każdego takiego okna czasowego
+notujemy wszystkie dźwięki które w nim brzmią (tj. zaczynają się w tym lub
+wcześniejszym oknie czasowym, i kończą w tym bądź późniejszym). Jedna ósemka
+zostanie wówczas „zauważona” czterokrotnie, ćwierćnuta ośmiokrotnie i tak dalej.
+Dla przedziałów czasowych które pozostały puste wstawiamy \emph{pauzy}, na takiej
+samej zasadzie jak nuty (otrzymując pauzy ósemkowe, ćwierćnutowe etc). Po przeanalizowaniu
+w ten sposób całego utworu przeszukujemy otrzymaną listę nut od początku do końca,
+każdy znaleziony dźwięk „sklejając” z jego ponownymi wystąpieniami i zapisując
+dla niego odpowiadającą mu długość.
+
+Na rysunku~\ref{fig:polling1} widzimy efekt próbkowania piosenki „Wlazł kotek na płotek”
+dla rozdzielczości 300. Nuta numer 4 zawarła się w przedziałach od piątego do siódmego,
+nuta numer 8 zaś w~przedziałach od dziesiątego do jedenastego. Nuta numer 4 jest zatem
+w przybliżeniu o połowę dłuższa niż nuta numer 8.
+
+\begin{figure}[h!]
+    \centering
+    \begin{tikzpicture}
+    \begin{axis}[
+        grid=major,
+        legend pos=outer north east,
+        legend cell align=left,
+        xtick={0,300,...,3600},
+        x tick label style={rotate=45,anchor=east,font=\tiny},
+    ]
+    \addplot coordinates { (0,    67) (514,  67) };
+    \addplot coordinates { (470,  64) (867,  64) };
+    \addplot coordinates { (909,  64) (1399, 64) };
+    \addplot coordinates { (1356, 65) (1832, 65) };
+    \addplot coordinates { (1794, 62) (2175, 62) };
+    \addplot coordinates { (2235, 62) (2612, 62) };
+    \addplot coordinates { (2682, 60) (2889, 60) };
+    \addplot coordinates { (2888, 64) (3155, 64) };
+    \addplot coordinates { (3129, 67) (3516, 67) };
+    \legend{
+        1. $G_4$ (wlazł),
+        2. $E_4$ (ko),
+        3. $E_4$ (tek),
+        4. $F_4$ (na),
+        5. $D_4$ (pło),
+        6. $D_4$ (tek),
+        7. $C_4$ (i),
+        8. $E_4$ (mru),
+        9. $G_4$ (ga),
+    }
+    \end{axis}
+    \end{tikzpicture}
+    \label{fig:polling1}
+    \caption{Przykładowy efekt próbkowania piosenki „Wlazł kotek na płotek”}
+\end{figure}
+
+W praktyce dobierane rozdzielczości są dużo mniejsze -- optymalną rozdzielczością dla
+przykładu z rysunku~\ref{fig:polling1} jest 41, dla której możemy precyzyjnie określić
+długość nut i otrzymać zadowalający wynik końcowy. Wykres dla takiego próbkowania
+jest widoczny na rysunku~\ref{fig:polling2}.
+
+\begin{figure}[h!]
+    \centering
+    \begin{tikzpicture}
+    \begin{axis}[
+        grid=major,
+        legend pos=outer north east,
+        legend cell align=left,
+        xtick={0,41,...,3600},
+        xticklabels={,,}
+    ]
+    \addplot coordinates { (0,    67) (514,  67) };
+    \addplot coordinates { (470,  64) (867,  64) };
+    \addplot coordinates { (909,  64) (1399, 64) };
+    \addplot coordinates { (1356, 65) (1832, 65) };
+    \addplot coordinates { (1794, 62) (2175, 62) };
+    \addplot coordinates { (2235, 62) (2612, 62) };
+    \addplot coordinates { (2682, 60) (2889, 60) };
+    \addplot coordinates { (2888, 64) (3155, 64) };
+    \addplot coordinates { (3129, 67) (3516, 67) };
+    \legend{
+        1. $G_4$ (wlazł),
+        2. $E_4$ (ko),
+        3. $E_4$ (tek),
+        4. $F_4$ (na),
+        5. $D_4$ (pło),
+        6. $D_4$ (tek),
+        7. $C_4$ (i),
+        8. $E_4$ (mru),
+        9. $G_4$ (ga),
+    }
+    \end{axis}
+    \end{tikzpicture}
+    \label{fig:polling2}
+    \caption{„Wlazł kotek na płotek” przy optymalnym próbkowaniu}
+\end{figure}
+
+Co jednak z dźwiękami nieco dłuższymi lub krótszymi niż być powinny? Grając
+np. półnuty lub całe nuty nietrudno przypadkiem przeciągnąć trochę dźwięk
+i~zagrać go o~jedną trzydziestodwójkę za krótko lub za długo. Algorytm
+bierze to pod uwagę, i zaokrągla każdą nutę do najbliższej sensownej wartości,
+kompensując w ten sposób niedokładność wykonania utworu przez człowieka.
+
+\begin{figure}[h!]
+    \centering
+    \begin{tabular}{ | c | c | c | c | }
+    \hline
+    Lp. & Dźwięk & Ilość przedziałów & Długość nuty \\ \hline
+    1. & \begin{math} G_4 \end{math} & 12 & 1/4 \\ \hline
+    2. & \begin{math} E_4 \end{math} & 10 & 1/4 \\ \hline
+    3. & \begin{math} E_4 \end{math} & 12 & 1/4 \\ \hline
+    4. & \begin{math} F_4 \end{math} & 11 & 1/4 \\ \hline
+    5. & \begin{math} D_4 \end{math} &  9 & 1/4 \\ \hline
+    6. & \begin{math} D_4 \end{math} & 10 & 1/4 \\ \hline
+    7. & \begin{math} C_4 \end{math} &  5 & 1/8 \\ \hline
+    8. & \begin{math} E_4 \end{math} &  7 & 1/8 \\ \hline
+    9. & \begin{math} G_4 \end{math} & 10 & 1/4 \\ \hline
+    \end{tabular}
+    \label{fig:mapping41}
+    \caption{Wyznaczone długości nut dla rozdzielczości 41}
+\end{figure}
+
+Jak widzimy na rysunku~\ref{fig:mapping41}, nuty pokrywające poniżej 8 przedziałów zostały
+sklasyfikowane jako ósemki, te powyżej zaś jako ćwierćnuty. (Wynik w postaci graficznej
+jest widoczny na rysunku~\ref{fig:wlazkotekgood}).
+
+Opisany powyżej algorytm nie jest w stanie precyzyjnie
+wychwycić dźwięków krótszych niż trzydziestodwójki; występują one jednak
+niezwykle rzadko; w praktyce jeśli trafiają się one w utworze, możemy
+bezpiecznie założyć iż dobraliśmy zbyt małą częstotliwość próbkowania dla
+analizowanego utworu.
+
+Metoda ta okazuje się działać znakomicie, pod warunkiem dobrania odpowiedniej
+częstotliwości próbkowania dźwięków. Jak zatem wyznaczyć ją \emph{a priori},
+przed rozpoczęciem analizy utworu, aby wynik był akceptowalny?
+Tutaj własnie pojawia się heurystyka;
+opisaną wyżej procedurę wykonujemy wielokrotnie, dla wielu różnych długości
+jednej trzydziestodwójki, a następnie spośród otrzymanych wyników cząstkowych
+wybieramy ten najlepszy.
+
+Jak jednak ocenić, który z nich jest najlepszy?
+Specjalna funkcja oceny analizuje każdy z otrzymanych wyników, i przyznaje mu
+punkty karne za każdą „niemile widzianą” strukturę dźwięków.
+Funkcja ta przyzna zatem punkty karne za każdy dźwięk krótszy niż 1/32, tudzież
+dłuższy niż cała nuta: oba ta przypadki świadczą o zbyt małej lub zbyt dużej
+częstotliwości próbkowania dla danego wyniku. Jest to dobra metoda do
+wyeliminowania skrajnych przypadków, co jednak z bardziej subtelnymi błędami?
+
+Pianista grający utwór nigdy nie zagra ich perfekcyjnie, z mechaniczną precyzją,
+i długością nut dokładną co do milisekundy. Długość np. ósemki może wahać się
+w nagranym utworze pomiędzy, przyjmijmy, 35 a 45 tyknięciami zegara. Co stanie
+się wówczas dla rozdzielczości próbkowania równej 10 (10 dla jednej
+trzydziestiodwójki da nam 40 dla jednej ósemki)? Połowa tych nut zostanie
+zakwalifikowana jako ósemki, połowa zaś błędnie jako ćwierćnuty. W efekcie
+otrzymamy zapis utworu w którym zamiast serii równych ósemek otrzymamy ciąg ósemek
+poprzeplatanych ćwierćnutami.
+
+Aby wystrzec się powyższego przypadku, funkcja oceny kara każdą nutę o długości
+innej, niż poprzednia. Wówczas seria równych ósemek (które otrzymamy na przykład
+dla rozdzielczości 12 lub wyższej) otrzyma mniej punktów karnych niż
+„przeplataniec” opisany powyżej.
+
+Inną rzeczą poprawną, acz nietypową w zapisie nutowym są \emph{nuty z kropkami}.
+Dźwięk mający długość trzech ósemek, a zatem półtorej ćwierćnuty
+zapisujemy za pomocą ćwierćnuty z kropką (kropkę możemy wówczas odczytać jako
+przyrostek „i pół”). Takie nuty występują niemal w każdym utworze, tym niemniej
+nie należą one do większości. Jeśli utwór zawiera więcej nut z kropkami niż bez
+(a już tym bardziej pauz z kropkami, które w utworach nie występują niemal
+ nigdy), zapis możemy bezpiecznie uznać za niedoskonały.
+
+Możliwość wystąpienia takiego przypadku możemy zilustrować kolejnym przykładem:
+załóżmy że analizujemy utwór dla rozdzielczości 10 (czyli idealną długością
+ćwierćnuty byłoby 80), a wszystkie nuty w utworze mają długość oscylującą wokół
+120, algorytm radośnie wyprodukuje nam serię ćwierćnut z kropkami, podczas gdy
+dla rozdzielczości 15 długość ćwierćnuty wyniosłaby dokładnie 120, i wszystkie
+wykryte nuty zostałyby wykryte jako ćwierćnuty. Oba dostarczone wyniki byłyby
+oczywiście poprawne i równoważne, niemniej jednak trudno wyobrazić sobie
+kompozytora, który celowo wstawia w utwór same nuty z kropkami (chociażby
+przez trudność utrzymania \emph{tempa} utworu, \emph{akcentów} i długości
+\emph{taktów}. Funkcja oceny kara zatem wystąpienia nut z kropkami, aby dać
+szansę tym wynikom, w których występuje ich jak najmniej.
+
+Funkcję oceny możemy zapisać zatem następująco:
+
+\begin{math}
+    h(x) = 2x_1 + 5x_2 + x_3
+\end{math}
+
+Gdzie \begin{math} x_1 \end{math} to ilość zmian długości nut,
+\begin{math} x_2 \end{math} to ilość dźwięków krótszych niż 1/32,
+\begin{math} x_3 \end{math} zaś to ilość nut z kropkami. Współczynniki
+zostały dobrane metodą prób i błędów w celu zapewnienia najlepszych
+rezultatów.
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        \time 3/4
+        g'4 e'4 e'4 | f'4 d'4 d'4 | c'8 e'8 g'4 r4 | 
+        g'4 e'4 e'4 | f'4 d'4 d'4 | c'8 e'8 c'4 r4 |
+    }
+    \end{lilypond}
+    \caption{Dobry zapis „Wlazł kotek na płotek” (rozdzielczość 41)}
+    \label{fig:wlazkotekgood}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        \time 3/4
+        g'4. e'4 e'4. | f'4. d'4 d'4 | c'8 e'8 g'4 r4. | 
+        g'4. e'4 e'4. | f'4. d'4 d'4. | c'8 e'8 c'4
+    }
+    \end{lilypond}
+    \caption{Zły zapis „Wlazł kotek na płotek” (rozdzielczość 35)}
+    \label{fig:wlazkotekbad}
+\end{figure}
+
+Policzmy teraz wartość funkcji oceny dla przykładów z rysunków 4 i 5.
+Na rysunku~\ref{fig:wlazkotekgood} widzimy jedynie 4 zmiany tempa:
+nie ma na nim ani nut z kropkami
+ani dźwięków krótszych niż 1/32 (widocznych w zapisie nutowym jako ozdobniki),
+toteż wartość funkcji wynosi
+\begin{math}
+    h(x) = 2 * 4 + 5 * 0 + 0 = 8
+\end{math}
+
+Na rysunku~\ref{fig:wlazkotekbad} sytuacja jest bardziej skomplikowana:
+widocznych jest 12 zmian tempa,
+8 nut (bądź pauz) z kropkami, oraz ponownie zero nut krótszych niż 1/32. Funkcja oceny
+wynosi zatem
+\begin{math}
+    h(x) = 2 * 12 + 5 * 0 + 8 = 32
+\end{math}
+
+Zgodnie z oczekiwaniami rysunek~\ref{fig:wlazkotekgood} otrzymuje dużo mniejszą karę
+niż rysunek~\ref{fig:wlazkotekbad},
+zostaje zatem wybrany  jako lepszy wynik końcowy.
+
+Oprócz heurystycznej metody dobrania rozdzielczości użytkownik ma również
+możliwość ręcznego ustawienia rozdzielczości w interfejsie programu.
+
+Po zastosowaniu powyższych kroków i wybraniu najlepiej w oczach funkcji oceny
+wyglądającego wyniku otrzymujemy zapis nutowy będący bardzo dobrym
+odzwierciedleniem nagranego utworu.
+
+\subsection{Podział na ręce}
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    upper = {
+        \key g \major
+        \clef "treble"
+        d''4 g'8 a'8 b'8  c''8 d''4 | g'4 g'4 e''4 c''8 d''8 |
+        e''8 fis''8 g''4    d''8 c''8 b'8 a'8 | 
+    }
+    lower = {
+        \key g \major
+        \clef "bass"
+        << g2 d'2 b2 >>    a4  | b2. |   c'2.  |   b2. 
+    }
+    \score {
+        \new PianoStaff <<
+            \time 3/4
+            \new Staff = "upper" \upper
+            \new Staff = "lower" \lower
+        >>
+        \layout { }
+    }
+    \end{lilypond}
+    \caption{Przykład zapisu utworu na dwie ręce}
+\end{figure}
+
+Jako że utwory na fortepianie grane są (niemal zawsze) dwiema rękami, dla
+wygody wykonawcy każda ręka zapisana jest na arkuszu nutowym oddzielnie. Obie
+„ręce” grane są równocześnie, toteż i dźwięki zapisane w MIDI nakładają się na
+siebie niezależnie od tego, z której ręki pochodzą
+(informacja nie jest zawarta w strumieniu MIDI). Jak zatem podzielić otrzymany
+ciąg dźwięków na partię lewej i prawej ręki? Program robi to na dwa sposoby
+spośród których heurystycznie wybiera ten wyglądający lepiej.
+
+Pierwsza metoda, nazwana metodą „prostą”, dobiera jeden z klawiszy jako
+podzielnik (np. standardowe C), a następnie wszystkie dźwięki poniżej tegoż
+zapisuje prawej ręce, z pozostałe lewej (pauzy trafiają do obu rąk równocześnie).
+Podzielnik jest, podobnie jak w przypadku rozdzielczości przy wyznaczaniu długości
+nut, dobierany wielokrotnie, aby następnie w wyników cząstkowych na podstawie
+funkcji oceny wybrać ten najlepszy (TODO: wcale nie jest, jest zahardkodowany).
+
+Druga metoda, nazwana metodą „śledzącą” nie ma sztywnego podzielnika według
+którego dzieli nuty. Zamiast tego, jak sama nazwa wskazuje, śledzi ruchy rąk na
+klawiaturze w każdym momencie trwania utworu, i przypisuje dźwięki do tej ręki,
+która w danej chwili znajduje się bliżej klawisza odpowiadającemu aktualnie
+przetwarzanej nucie. Po każdym przypisaniu nuty do ręki pozycja ręki jest oczywiście
+uaktualniana. Metoda ta zdaje egzamin w utworach, w których obu rękom zdarza się
+przekraczać nawet najlepiej dobrany w metodzie prostej podzielnik.
+
+Początkową pozycją rąk jest odpowiednio oktawa niżej oraz oktawa wyżej podzielnika,
+który dobierany jest wielokrotnie podobnie jak w metodzie prostej
+(TODO: wcale nie jest, jak wyżej).
+
+Na koniec z obu metod podziału na ręce wybierana jest ta dająca lepszy wynik.
+Funkcja oceny jakości wyniku liczy sumaryczną długość nut w obu rękach, a następnie
+przyznaje punkty karne w ilości różnicy długości partii obu rąk -- idealnym
+rozwiązaniem jest wówczas to, w którym partie obu rąk mają równą długość.
+
+% Tak samo opis funkcji oceny jak poprzednio
+
+Dodatkowo karane są te wyniki, w których ręce przekraczają barierę standardowego C:
+jeśli dzieje się to zbyt często, dźwięki te są prawdopodobnie źle sklasyfikowane.
+(TODO: wcale nie są za to karane).
+
+% przykład z obrazkiem
+
+\subsection{Określenie tempa utworu}
+
+\subsection{Dynamika}
+
+\section{Bibliografia}
+
+\begin{enumerate}
+\item Opis formatu Lilypond: \url{http://lilypond.org/doc/v2.18/Documentation/learning-big-page.html}
+\item Opis formatu MIDI: \url{http://www.sonicspot.com/guide/midifiles.html}
+\item Dokumentacja używanej biblioteki MIDI: \url{https://metacpan.org/pod/MIDI}
+\item Franciszek Wesołowski -- „Zasady Muzyki” (ISBN: 83-224-0461-1)
+\end{enumerate}
+
+\end{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\begin{enumerate}
+%\item Parsowanie strumienia MIDI
+%\item Określenie tonacji (klucza) utworu
+%\item Zamiana zdarzeń MIDI na nuty
+%\item Określenie długości nut metodą statystyczną
+%    \item Podział nut na nuty lewej i prawej ręki
+%\item Wstawenie pauz pomiędzy nuty (obu rąk)
+%\item Łączenie nut w akordy (również dla obu rąk)
+%\item Określenie tempa (metrum) utworu
+%\item Przekształcenie reprezentacji nut na format GNU Lilypond
+%\item Wygenerowanie graficznej reprezentacji arkusza za pomocą programu GNU Lilypond
+%\end{enumerate}
+%
+%\section{Opis szczegółowy}
+%
+%\subsection{Parsowanie strumienia MIDI}
+%
+%Za ten krok odpowiedzialny jest wyłącznie moduł MIDI\footnote{https://metacpan.org/pod/MIDI},
+%będący zewnętrzną zależnością projektu. Zamienia on zadany strumień MIDI w wygodną do
+%przetwarzania Perlową strukturę danych.
+%
+%
+%\subsection{Zamiana zdarzeń MIDI na nuty}
+%
+%Każde zdarzenie MIDI posiada relatywny indeks czasowy, określający jak długo po poprzednim
+%zdarzeniu nastąpiło (względnie może być to zero). W tym kroku przetwarzania wyszukujemy w
+%strumieniu MIDI odpowiadające sobie pary zdarzeń note\_on oraz note\_off; śledząc jednocześnie
+%zmianę indeksu czasowego w zdarzeniach występujących pomiędzy nimi możemy łatwo wyliczyć ilość
+%tyknięć zegara pomiędzy tymi zdarzeniami, czyli efektywnie długość danego dźwięku. Dla każdego
+%znalezionego dźwięku tworzona jest struktura danych, na której pracować będą pozostałe kroki
+%programu (surowe dane z MIDI nie będą już potrzebne). Danymi przekazywanymi do następnego kroku
+%jest lista struktur danych opisujących poszczególne nuty (na tym etapie jest to jedynie długość
+%tejże oraz indeks klawisza na klawiaturze który został wciśnięty aby ją wydobyć).
+%
+%\subsection{Określenie długości nut}
+%
+%TODO: Opisać jak się mają ćwierć- pół- i całe nuty do długości.
+%
+%Metoda ktorą określamy prawdopodobne typy nut przedstawia się następująco: najpierw statystycznie
+%wyliczana jest referencyjna wartość ćwierćnuty – zakładamy tutaj, że ćwierćnuta będzie najczęściej
+%występującym typem nuty w utworze. Wsród wszystkich zadanych nut wyszukujemy niby-medianę długości
+%dźwięków; od klasycznej mediany różni się tylko tym, że dla parzystej ilości nut nie wyliczamy
+%średniej arytmetycznej z dwóch środkowych, a po prostu przyjmujemy mniejszą z nich jako
+%niby-medianę; dzielenie mogłoby zaowocować niepoprawnymi wynikami w przypadku gdybyśmy uśredniali
+%wartości nut, które w praktyce okazałyby się ćwierć- i półnutą – w takim przypadku uzyskana
+%referencyjna długość ćwierćnuty nie pasowałaby niemal do niczego.
+%
+%Mając ustaloną wartość referencyjną (dalej dla wygody nazwaną \$base), dla każdej nuty w utworze
+%liczymy stosunek jej długości do \$base. Jeśli jest on najbardziej zbliżony do 1, nuta ta jest
+%ćwierćnutą; jeśli wynosi około 0.5 nuta ta jest ósemką (jest circa dwukrotnie krótsza od
+%ćwierćnuty). Analogicznie, jeśli stosunek tej nuty do \$base wynosi około 2, nuta ta jest półnutą.
+%
+%Używamy tutaj przybliżeń, jako że dźwięki grane przez człowieka nie będa mieć zawsze idealnych
+%długości: dwie nuty mogą mieć na przykład długości 201 oraz 270, a obie będą ćwierćnutami;
+%trudno oczekiwać, żeby człowiek, nawet mający doskonałe wyczucie rytmu był w stanie zawsze trzymać
+%klawisz wciśnięty przez dokładnie taką samą ilość czasu. Algorytm musi zatem odgadnąć
+%prawdopodobną intencję użytkownika poprzez wzięcie poprawki na to, że dane wejściowe nie są
+%idealne.
+%
+%Niniejszy krok okazuje się być absolutnie kluczowy do wygenerowania sensownego zapisu nutowego;
+%dobranie złego współczynnika \$base może owocować absurdalnymi wynikami: może na przykład okazać
+%się, że niby-medianą długości nut była nuta z kropką. Program, probując wówczas odgadnąć jak
+%najcelniej intencje użytkownika i długości pozostałych nut potrafi nieraz wyprodukować zaiste
+%zaskakujące wyniki. Przeprowadzone testy wykazują jednak, iż dla każdego wystarczająco dobrze
+%zagranego utworu istnieje wartość \$base, która produkuje oczekiwany wynik. Nasuwa się zatem
+%wniosek taki, że program może we własnym zakresie „eksperymentować” z wartością \$base, tak aby
+%wynik był „oczekiwany”. Potrzebna jest do tego funkcja oceny końcowego rezultatu, patrząca na
+%przykład właśnie na to, czy przypadkiem większość nut w utworze nie jest z kropkami (co niemal
+%nigdy nie jest zamiarem użytkownika). Mając taką funkcję program może wyprobować kilka różnych
+%wartości \$base, a następnie wybrać tę, która produkuje najbardziej czytelny rezultat.
+%
+%Metodą alternatywną do powyżej opisanej byłaby metoda próbkowania: w pierwszej kolejności
+%ustalałaby ona częstotliwości tyknięć, porównywalnych do tyknięć \emph{metronomu}. Następnie,
+%z każdym tyknięciem należałoby sprawdzić, które dźwięki są aktualnie grane; na podstawie tego,
+%przez ile tyknięć dany dźwięk pozostawałby aktywny możnaby łatwo wywnioskować jego długość.
+%Przykładowo, jeśli założymy częstotliwość tyknięć co jedną \emph{ósemkę}, jeśli od momentu
+%naciśnięcia do puszczenia danego klawisza wystąpiłyby 2 tyknięcia, grany dźwięk jest z pewnością
+%ćwierćnutą. Rozwiązanie takie miałoby taką przewagę nad obecnym, iż błędne klasyfikacje nut nie
+%powodowałyby propagowania się błędów na całą resztę utworu, jako że źle sklasyfikowany dźwięk
+%nie „przesuwałby” w czasie tych, które wystąpią po nim – pozycja dźwięku byłaby uwarunkowana
+%jedynie tym, przy którym tyknięciu zegara wystąpił, nie zaś tym, jak długie były dźwięki które
+%wystąpiły przed nim. (\emph{To nie jest chyba zbyt oczywiste z tego opisu: pewnie potrzebny byłby
+%solidny przykład (o ile to co tu zmyśliłem faktycznie działa)}). W tym kroku automatycznie
+%odbyłoby się również wstawianie pauz oraz podział na akordy: pauzy byłyby wstawiane wtedy, gdy
+%podczas tyknięc nie grane są żadne dźwięki, akordy zaś wtedy, gdy podczas jednego tyknięcia grany
+%jest więcej niż jeden dźwięk.
+%
+%\subsection{Podział na nuty lewej i prawej ręki}
+%
+%Na arkuszu muzycznym, dla wygody pianisty, nuty dla obu rąk są umieszczone na oddzielnych
+%\emph{pięcioliniach}. Jednym z zadań programu jest zatem podzielenie nut na dwa zbiory: ręki
+%lewej, grającej dźwięki niższe, oraz prawej, grającej dźwięki wyższe.
+%
+%Obecny algorytm dokonuje tego podziału następująco: zakładamy, iż pozycją początkową reki lewej
+%jest klawisz z dźwiękiem C3 (klawisz numer 48), a prawej klawisz z dźwiękiem C5 (74). Następnie
+%dla każdego dźwięku w utworze sprawdzane jest, czy znajduje się on bliżej prawej, czy lewej ręki.
+%Zostaje on wówczas przypisany do odpowiedniego zbioru, a pozycja wybranej ręki jest uaktualniana:
+%od tego momentu zakładamy, że wybrana ręka spoczywa w okolicach tegoż klawisza. Dla każdej
+%kolejnej nuty sprawdzamy analogicznie, czy klawisz jej odpowiadający będzie łatwiej sięgnąć ręką
+%lewą czy prawą, i przypisujemy dźwięki do odpowiednich zbiorów, na bieżąco śledząc i uaktualniając
+%pozycje obu rąk na klawiaturze.
+%
+%\subsection{Wstawianie pauz między nuty}
+%
+%W strumieniu MIDI zawarte mamy grane dźwięki; nie ma tam natomiast zapisanych momentów ciszy,
+%które oznaczamy w zapisie nutowym za pomocą \emph{pauz}. W tym kroku musimy zatem zdeterminować,
+%które z przerw między dźwiękami (dla każdej ręki osobno), są wystarczająco długie aby uznać je za
+%pauzy – przerwy długości na przykład 10 milisekund trudno uznać za warte wzmianki w zapisie
+%nutowym; bierzemy pod uwagę te tylko, które mają długość dłuższą niż na przykład \emph{szesnastka}
+%bądź \emph{trzydziestkadwójka}. Wyszukujemy więc wszystkie przerwy pomiędzy nutami o długości
+%większej niż zero, a następnie wyliczamy ich typ (pauza ćwierćnutowa, ósemkowa etc.) w identyczny
+%sposób jak w kroku przedpoprzednim. Następnie, jeśli pauza jest akceptowalnie długa (czyli jest
+%zapewne faktycznie zamierzona, a nie jest jedynie niedoskonałością wykonania utworu), wstawiamy
+%ją pomiędzy analizowane nuty.
+%
+%\subsection{Łączenie nut w akordy}
+%
+%Przed tym krokiem, nuty które rozpoczynały się (niemal) równocześnie w strumieniu MIDI mamy
+%zapisane jako występujące jedna po drugiej. W zapisie końcowym musimy jednak wyraźnie zaznaczyć,
+%że mają być one zagrane równocześnie, stąd potrzeba wykonania niniejszego kroku.
+%
+%Podobnie jak w poprzednim kroku (a w zasadzie również na każdym kroku opisywanego programu),
+%tutaj również musimy wziąć poprawkę na niedoskonałość wykonania utworu przez pianistę. Dźwięki
+%grane „równocześnie” w praktyce będą grane raczej w pomijalnie małych od siebie odstępach
+%czasowych. Przeszukujemy zatem listę nut (tak jak poprzednio, dla każdej ręki z osobna), w
+%poszukiwaniu takich pozdbiorów, w których następujące po sobie nuty mają taką samą (lub bardzo
+%zbliżoną) długość\footnote{W praktyce jest to NYI}), a także zaczynają się w bardzo niewielkich
+%od siebie odstepach czasu – możemy wówczas bezpiecznie założyć, ze zagrane one zostały niemal
+%równocześnie, celem wykonania \emph{akordu}. Na tej zasadzie dotychczasowa lista nut jest
+%przekształcana na listę akordów, czyli \emph{de facto} listę list nut.
+%
+%TODO: W zapisie nutowym można zaznaczyć, czy dany akord jest jakimś standardowym akordem (C, G
+%albo jakimśtam; można przelecieć wszystkie akordy w utworze, i jeśli są one faktycznie jakieś
+%standardowe dodać do lilyponda odpowiednią adnotację. Pewnie przydałaby się tu też znajomość
+%tonacji.
+%
+%\subsection{Określenie tempa (metrum) utworu}
+%
+%Na tę chwilę program jedynie liczy długość wszytkich nut, i sprawdza, czy sumaryczna ilość całych
+%nut jest bardziej podzielna przez 3, czy przez 4. Wtedy zapisuje tempo jako 3/4 lub 4/4. Normalnie
+%powinien brać pod uwagę również akcenty etc. (To trzebaby opisać dokładniej, ale jest już po
+%połnocy).
