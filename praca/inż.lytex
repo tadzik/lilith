@@ -4,6 +4,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{hyperref}
 \usepackage{pgfplots}
+\usepackage{color}
 \pgfplotsset{compat=newest}
 \title{Generowanie arkuszy muzycznych na podstawie sygnału MIDI z instrumentów klawiszowych}
 \author{Tadeusz Sośnierz}
@@ -52,41 +53,79 @@ oraz inne symbole takie jak oznaczenia tempa, tonacji czy głośności utworu.
         \layout { }
     }
     \end{lilypond}
-    \label{fig:worms_theme}
     \caption{Przykład zapisu nutowego}
+    \label{fig:worms_theme}
 \end{figure}
 
 
 Każda nuta reprezentuje jeden dźwięk występujący w utworze -- jego długość oraz
 wysokość. Długość dźwięku zależy od wyglądu samej nuty, wysokość zaś od pozycji (pionowej)
-nuty na pięciolinii. Odległości w poziomie pomiędzy znakami na pięciolinii nie mają znaczenia.
+nuty na pięciolinii. \textcolor{red}{Po pozycji poziomej nut widać, w jakiej kolejności są one grane, oraz
+które z nich grane są równocześnie (również na przestrzeni kilku połączonych pięciolinii).}
 
-Nuty dzielimy pod kątem długości dźwięku na całe nuty, półnuty, ćwierćnuty, ósemki,
-szesnastki itd, gdzie półnuta ma długość połowy całej nuty, ćwierćnuta oznacza jedną
+Nuty dzielimy pod kątem długości dźwięku na \emph{całe nuty}, \emph{półnuty},
+\emph{ćwierćnuty}, \emph{ósemki}, \emph{szesnastki} i \emph{trzydziestodwójki}
+gdzie półnuta ma długość połowy całej nuty, ćwierćnuta oznacza jedną
 czwartą całej nuty itd. Faktyczna długość całej nuty (np. w milisekundach) nie jest
 zazwyczaj precyzyjnie określona; O ile w niektórych arkuszach muzycznych można spotkać
 adnotację, określającą ile
-dokładnie uderzeń na minutę (?) przekłada się na jedną całą nutę, zazwyczaj
-informację tę pomija się, pozostawiając ją do interpretacji wykonawcy utworu.
+\textcolor{red}{dokładnie uderzeń na minutę (BPM) przekłada się na jedną wybraną nutę.
+W ostatnim przykładzie z rysunku~\ref{fig:presto} widzimy zapis sugerujący
+długość ćwierćnuty równą pół sekundy (120 ćwierćnut na minutę).
+Zazwyczaj jednak informację tę pomija się, pozostawiając ją do interpretacji wykonawcy utworu.}
 Przeważnie jedynym, co informuje muzyka o tempie grania utworu jest
 umieszczenie na początku arkusza włoskiego słowa określającego zamierzoną
 prędkość utworu (np. \emph{Largo} oznaczające wolno, \emph{Allegro} -- szybko, czy
 \emph{Andante}, będące w przybliżeniu tempem osoby idącej pieszo).
 
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    \relative c'' {
+        \time 3/4
+        \tempo "Andante"
+        a4 a a
+    }
+    \end{lilypond}
+    \begin{lilypond}
+    \relative c'' {
+        \time 6/8
+        \tempo 4. = 96
+        a4. a
+    }
+    \end{lilypond}
+    \begin{lilypond}
+    \relative c'' {
+        \time 4/4
+        \tempo  "Presto" 4 = 120
+        a4 a a a
+    }
+    \end{lilypond}
+    \caption{Przykłady oznaczania tempa utworu}
+    \label{fig:presto}
+\end{figure}
+
 Jak widać więc,
 faktyczna długość poszczególnych nut podlega dość luźnej interpretacji, zarówno
 podczas wykonywania utworu, jak również podczas zapisywania utworu w zapisie nutowym.
-Przełozenie nagranych dźwięków na oczekiwane przez użytkownika nuty jest jednym z problemów,
+Przełożenie nagranych dźwięków na oczekiwane przez użytkownika nuty jest jednym z problemów
 z którymi boryka się opisywany w tej pracy program.
 
 O wartości nuty decyduje jej wypełnienie, obecność pionowej laski oraz ilość chorągiewek.
 Cała nuta zapisywana jest jako pusta w środku elipsa. Półnuta to cała nuta ozdobiona
-pionową laską (w górę lub w dół; zwrot ma jedynie znaczenie estetyczne). Ćwierćnuta
+\textcolor{red}{pionową laską w górę lub w dół; zwrot jest zależny od pionowej pozycji nuty na pięciolinii, aczkolwiek zazwyczaj jest on dobierany ze mając na względzie walory estetyczne -- nie ma
+sztywnych reguł określających, od którego momentu w którą stronę kierowana jest laska.}
+Ćwierćnuta
 ma taki sam symbol jak półnuta, jednak elipsa jest wypełniona. Ósemki, szesnastki itd.
 oznaczane są dodawaniem do symbolu ćwierćnuty chorągiewek: jednej w przypadku ósemki,
-dwóch dla szesnastki i tak dalej. Zapisując wiele ósemek lub krótszych nut obok siebie
-można połączyć je belkami, których ilość odpowiada ilości chorągiewiek dla danego typu
-nuty.
+dwóch dla szesnastki i tak dalej.
+
+Zapisując wiele ósemek lub krótszych nut obok siebie
+\textcolor{red}{należy połączyć je belkami w grupy odpowiadające podziałowi metrycznemu utworu:
+dla przykładu jeśli podstawową jednostką metryczną w utworze (dolną nutą w oznaczeniu metrum) jest ćwierćnuta,
+nuty łączymy w grupy o długości jednej ćwierćnuty (dwie ósemki czy też cztery szesnastki).
+Ilość belek odpowiada ilości chorągiewiek dla danego typu nuty. Przykład takiego zapisu widzimy
+na rysunku~\ref{fig:belki}. XXX Opis metrum jest dopiero stronę dalej :/}
 
 \begin{figure}[h!]
     \centering
@@ -97,7 +136,7 @@ nuty.
         g'1 g'2 g'4 g'8 g'16
     }
     \end{lilypond}
-    \caption{Różne długości nut: cała nuta, półnuta, ćwierćnuta, ósemka, szesnastka}
+    \caption{Różne długości nut. Od lewej: cała nuta, półnuta, ćwierćnuta, ósemka, szesnastka}
 \end{figure}
 
 \begin{figure}[h!]
@@ -109,11 +148,12 @@ nuty.
         g'8 g'8 g'16 g'16 g'16 g'16
     }
     \end{lilypond}
-    \caption{Ósemki i szesnastki połączone belkami}
+    \caption{Dwie ósemki i cztery szesnastki połączone belkami}
+    \label{fig:belki}
 \end{figure}
 
-Obok każdej nuty można zapisać kropkę. Kropka oznacza, iż nuta jej odpowiadająca ma mieć
-długość o połowę dłuższą -- tak więc ćwierćnuta z kropką ma długość jednej ćwierćnuty i
+Obok każdej nuty można zapisać \emph{kropkę}. Kropka oznacza, iż nuta jej odpowiadająca ma
+mieć długość o połowę dłuższą -- tak więc ćwierćnuta z kropką ma długość jednej ćwierćnuty i
 jednej ósemki.
 
 \begin{figure}[h!]
@@ -128,8 +168,10 @@ jednej ósemki.
     \caption{Ćwierćnuta z kropką}
 \end{figure}
 
-Aby zaznaczyć w zapisie nutowym ciszę w utworze używa się \emph{pauz}. Pauzy mają takie
-same długości jak nuty, nie mają jednak wysokości.
+Aby zaznaczyć w zapisie nutowym ciszę w utworze używa się \emph{pauz}.
+\textcolor{red}{Pauzy mają takie
+same długości jak odpowiadające im nuty, nie mają jednak wysokości -- zapisujemy je
+w~ustalonych miejscach na pięciolinii.}
 
 \begin{figure}[h!]
     \centering
@@ -140,7 +182,7 @@ same długości jak nuty, nie mają jednak wysokości.
         r1 r2 r4 r8 r16 r32
     }
     \end{lilypond}
-    \caption{Pauzy: całonutowa, półnutowa, ćwierćnutowa, ósemkowa, szesnastkowa}
+    \caption{Pauzy. Od lewej: całonutowa, półnutowa, ćwierćnutowa, ósemkowa, szesnastkowa}
 \end{figure}
 
 Podobnie jak nuty, pauzy również mogą być okraszone kropkami. Zapisu takiego używa się
@@ -148,12 +190,14 @@ jednak niezwykle rzadko, zastępując go po prostu dwiema pauzami. Przykład wid
 rysunku~\ref{fig:worms_theme} w partii prawej ręki, gdzie pierwsze dwie pauzy możnaby
 teoretycznie zastąpić pauzą z kropką. Nie robi się tak jednak ze względów estetycznych.
 
-Podczas gdy wygląd nuty określa długość dźwięku, wysokość tegoż jest zależna od pionowej
-pozycji nuty na pięciolinii. Nuty mozemy zapisywać albo na liniach, albo pomiędzi nimi:
+Podczas gdy wygląd nuty określa długość dźwięku, wysokość tegoż dźwięku jest zależna od pionowej
+pozycji nuty na pięciolinii. Nuty mozemy zapisywać albo na liniach, albo pomiędzy nimi:
 na pięciolinii jest zatem 11 pozycji na których możemy umieścić nuty (licząc pozycję pod
 najniższą oraz nad najwyższą linią). Aby umieścić na pięciolinii większy zakres dźwięków
 dopisuje się dodatkowe kreski pod lub nad pięciolinią, zmieniając ją na pewnym odcinku
-w niejako „siedmiolinię” bądź „dziewięciolinię”.
+\textcolor{red}{
+w niejako „siedmiolinię” bądź „dziewięciolinię” (tak jak na rysunku~\ref{fig:dodane}).
+}
 
 \begin{figure}[h!]
     \centering
@@ -165,13 +209,41 @@ w niejako „siedmiolinię” bądź „dziewięciolinię”.
     }
     \end{lilypond}
     \caption{Przykład linii dodanych}
+    \label{fig:dodane}
 \end{figure}
 
-TODO: Coś o tym, że odległości na pięciolinii to jak białe klawisze w pianinie, czy cuś.
+\textcolor{red}{W muzyce używamy tylko dźwięków o określonych częstotliwościach, i opisujemy
+je literami alfabetu. Dźwięk \begin{math} C_4 \end{math} (czwarty, a zatem środkowy dźwięk C
+na standardowej klawiaturze pianina) ma częstotliwość około 261.6 Hz).
+\begin{math} D_4 \end{math}, będący dźwiękiem o jeden ton wyższym (następny biały klawisz)
+od \begin{math} C_4 \end{math} ma częstotliwość około 293.665 Hz. Różnice częstotliwości między
+kolejnymi dźwiękami zmieniają się nieregularnie: nie wynoszą one około 36 Hz jak wynikałoby
+z różnicy częstotliwości \begin{math} C_4 \end{math} i \begin{math} D_4 \end{math}.
+Dźwięki w kolejnych \emph{oktawach} natomiast mają zawsze częstotliwość około dwa razy większą
+niż dźwięk z poprzedniej oktawy. (\begin{math} C_5 \end{math} ma w przyblizeniu dwa razy
+większą częstotliwość niż \begin{math} C_4 \end{math} -- 523.251 Hz).}
 
-Pianino, jak niemal każdy instrument, ma zakres dźwięków dużo większy niż pięciolinia.
+\textcolor{red}{Istnieje wiele notacji zapisu z której oktawy pochodzi dany dźwięk. Do tej pory
+używaliśmy \emph{notacji naukowej} (ang. \emph{scientific pitch notation}), ze względu na jej
+czytelność oraz fakt, iż dobrze oddaje pozycje dźwięków na klawiaturze pianina.
+W formacie Lilypond, który program generuje jako stadium pośrednie generowania arkusza muzycznego
+używana jest notacja Helmholtza: \begin{math} C_4 \end{math} zapisujemy
+w~niej jako «\begin{math} c' \end{math}», \begin{math} C_2 \end{math} zaś jako
+«\begin{math} c, \end{math}».}
+
+\textcolor{red}{Indeksy dolne przy nazwach dźwięków mówią nam, z której oktawy pochodzi dźwięk.
+Oktawą nazywamy \emph{interwał} o długości 8 dźwięków, czyli odległość między dźwiękiem, a
+dźwiękiem leżącym 8 klawiszy dalej na klawiaturze pianina. Na typowej klawiaturze znajduje się
+8~oktaw, tak więc znajdują się tam dźwięki z zakresu nie węższego niż od
+\begin{math} C_1 \end{math} do \begin{math} C_8 \end{math}. \begin{math} C_1 \end{math} jest
+dźwiękiem C znajdującym się najbardziej z lewej (o najniższej częstotliwości),
+\begin{math} C_8 \end{math} zaś najbardziej z prawej strony klawiatury.}
+
+\textcolor{red}{Widać zatem, że zakres dźwięków na klawiaturze pianina wielokrotnie przewyższa
+zakres dźwięków które można zapisać
+na pięciolinii.
 Aby określić którym dźwiękom odpowiadają które linie używa się \emph{klucza}. Różne klucze
-przypisują liniom konkretne dźwięki.
+przypisują liniom konkretne dźwięki.}
 
 \begin{figure}[h!]
     \centering
@@ -182,7 +254,7 @@ przypisują liniom konkretne dźwięki.
         r2
     }
     \end{lilypond}
-    \caption{Klucz wiolinowy}
+    \caption{Klucz wiolinowy (pierwszy symbol od lewej)}
 \end{figure}
 
 \begin{figure}[h!]
@@ -194,7 +266,7 @@ przypisują liniom konkretne dźwięki.
         r2
     }
     \end{lilypond}
-    \caption{Klucz basowy}
+    \caption{Klucz basowy (pierwszy symbol od lewej)}
 \end{figure}
 
 Najczęściej stosowanym kluczem jest \emph{klucz wiolinowy}. Jest on również nazywany
@@ -215,19 +287,45 @@ Zdarza się, że klucz zmienia się w trakcie utworu, zazwyczaj jednak jest on z
 jedynie raz, na samym początku pięciolinii, i pozostaje taki sam przez cały utwór aż
 do końca.
 
+TODO: Coś o tym, że odległości na pięciolinii to jak białe klawisze w pianinie, czy cuś.
+
 Każdy utwór posiada \emph{metrum}, które definiuje nam jak wiele nut składa się na jeden
-\emph{takt}, jak również podpowiada wykonawcy jak rozkładać akcenty. Tempo zapisuje się
+\emph{takt}, co umożliwia wykonawcy odpowiednie rozłożenie akcentów. Metrum zapisuje się
 zaraz za kluczem za pomocą dwóch liczb. Górna mówi ile nut będzie stanowić jeden takt,
-dolna zaś jakiego typu mają być to nuty. O tempie mówi się zwykle tak, jakby było ułamkiem
+dolna zaś jakiego typu mają być to nuty. O metrum mówi się zwykle tak, jakby było ułamkiem
 (więc np. „trzy czwarte” bądź „cztery ósme”), mimo iż ułamkiem nie jest. W szczególności
-tempo 4/8 nie jest, jak mogłoby się wydawać, tym samym co 2/4 czy 1/2. Mimo, iż po takim
-skróceniu długość taktu pozostania taka sama, zmieni się sugerowane akcentowanie dźwięków.
+metrum 4/8 nie jest, jak mogłoby się wydawać, tym samym co 2/4 czy 1/2. Mimo, iż po takim
+matematycznym skróceniu długość taktu pozostanie taka sama, zmieni się sugerowane akcentowanie
+dźwięków.
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        \time 3/4
+        d'8 c'8 d'8 e'8 f'8 d'8 | e'8 c'8 g'4 c''4 | b'4 c''4 d''8 g'8 |
+    }
+    \end{lilypond}
+
+    \begin{lilypond}
+    {
+        \key c \major
+        \clef "treble"
+        \time 6/8
+        d'8 c'8 d'8 e'8 f'8 d'8 | e'8 c'8 g'4 c''4 | b'4 c''4 d''8 g'8 |
+    }
+    \end{lilypond}
+    \caption{Ten sam zapis przed i po „skróceniu” metrum}
+\end{figure}
+
 
 W przypadku generowania arkusza muzycznego akcenty w nagranym utworze nie zawsze będą na tyle
-wyraźne, aby poprawnie odgadnąć tempo utworu, toteż opisywany program często decyduje jedynie
-pomiędzy tempem 3/4 a 4/4, pozostawiając użytkownikowi możliwość poprawienia na prawidłowe.
+wyraźne, aby poprawnie odgadnąć metrum utworu, toteż opisywany program często decyduje jedynie
+pomiędzy metrum 3/4 a 4/4, pozostawiając użytkownikowi możliwość poprawienia na prawidłowe.
 
-Tempo 4/4 zapisuje się zwykle w arkuszach muzycznych znakiem C (jak na rysunku poniżej).
+Metrum 4/4 zapisuje się zwykle w arkuszach muzycznych znakiem C (jak na rysunku poniżej).
 
 \begin{figure}[h!]
     \centering
@@ -414,8 +512,8 @@ w przybliżeniu o połowę dłuższa niż nuta numer 8.
     }
     \end{axis}
     \end{tikzpicture}
-    \label{fig:polling1}
     \caption{Przykładowy efekt próbkowania piosenki „Wlazł kotek na płotek”}
+    \label{fig:polling1}
 \end{figure}
 
 W praktyce dobierane rozdzielczości są dużo mniejsze -- optymalną rozdzielczością dla
@@ -455,8 +553,8 @@ jest widoczny na rysunku~\ref{fig:polling2}.
     }
     \end{axis}
     \end{tikzpicture}
-    \label{fig:polling2}
     \caption{„Wlazł kotek na płotek” przy optymalnym próbkowaniu}
+    \label{fig:polling2}
 \end{figure}
 
 Co jednak z dźwiękami nieco dłuższymi lub krótszymi niż być powinny? Grając
@@ -480,8 +578,8 @@ kompensując w ten sposób niedokładność wykonania utworu przez człowieka.
     8. & \begin{math} E_4 \end{math} &  7 & 1/8 \\ \hline
     9. & \begin{math} G_4 \end{math} & 10 & 1/4 \\ \hline
     \end{tabular}
-    \label{fig:mapping41}
     \caption{Wyznaczone długości nut dla rozdzielczości 41}
+    \label{fig:mapping41}
 \end{figure}
 
 Jak widzimy na rysunku~\ref{fig:mapping41}, nuty pokrywające poniżej 8 przedziałów zostały
