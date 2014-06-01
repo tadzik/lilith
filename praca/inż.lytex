@@ -60,8 +60,8 @@ oraz inne symbole takie jak oznaczenia tempa, tonacji czy głośności utworu.
 
 Każda nuta reprezentuje jeden dźwięk występujący w utworze -- jego długość oraz
 wysokość. Długość dźwięku zależy od wyglądu samej nuty, wysokość zaś od pozycji (pionowej)
-nuty na pięciolinii. \textcolor{red}{Po pozycji poziomej nut widać, w jakiej kolejności są one grane, oraz
-które z nich grane są równocześnie (również na przestrzeni kilku połączonych pięciolinii).}
+nuty na pięciolinii. Po pozycji poziomej nut widać, w jakiej kolejności są one grane, oraz
+które z nich grane są równocześnie (również na przestrzeni kilku połączonych pięciolinii).
 
 Nuty dzielimy pod kątem długości dźwięku na \emph{całe nuty}, \emph{półnuty},
 \emph{ćwierćnuty}, \emph{ósemki}, \emph{szesnastki} i \emph{trzydziestodwójki}
@@ -69,10 +69,10 @@ gdzie półnuta ma długość połowy całej nuty, ćwierćnuta oznacza jedną
 czwartą całej nuty itd. Faktyczna długość całej nuty (np. w milisekundach) nie jest
 zazwyczaj precyzyjnie określona; O ile w niektórych arkuszach muzycznych można spotkać
 adnotację, określającą ile
-\textcolor{red}{dokładnie uderzeń na minutę (BPM) przekłada się na jedną wybraną nutę.
+dokładnie uderzeń na minutę (BPM) przekłada się na jedną wybraną nutę.
 W ostatnim przykładzie z rysunku~\ref{fig:presto} widzimy zapis sugerujący
 długość ćwierćnuty równą pół sekundy (120 ćwierćnut na minutę).
-Zazwyczaj jednak informację tę pomija się, pozostawiając ją do interpretacji wykonawcy utworu.}
+Zazwyczaj jednak informację tę pomija się, pozostawiając ją do interpretacji wykonawcy utworu.
 Przeważnie jedynym, co informuje muzyka o tempie grania utworu jest
 umieszczenie na początku arkusza włoskiego słowa określającego zamierzoną
 prędkość utworu (np. \emph{Largo} oznaczające wolno, \emph{Allegro} -- szybko, czy
@@ -113,19 +113,19 @@ z którymi boryka się opisywany w tej pracy program.
 
 O wartości nuty decyduje jej wypełnienie, obecność pionowej laski oraz ilość chorągiewek.
 Cała nuta zapisywana jest jako pusta w środku elipsa. Półnuta to cała nuta ozdobiona
-\textcolor{red}{pionową laską w górę lub w dół; zwrot jest zależny od pionowej pozycji nuty na pięciolinii, aczkolwiek zazwyczaj jest on dobierany ze mając na względzie walory estetyczne -- nie ma
-sztywnych reguł określających, od którego momentu w którą stronę kierowana jest laska.}
+pionową laską w górę lub w dół; zwrot jest zależny od pionowej pozycji nuty na pięciolinii, aczkolwiek zazwyczaj jest on dobierany ze mając na względzie walory estetyczne -- nie ma
+sztywnych reguł określających, od którego momentu w którą stronę kierowana jest laska.
 Ćwierćnuta
 ma taki sam symbol jak półnuta, jednak elipsa jest wypełniona. Ósemki, szesnastki itd.
 oznaczane są dodawaniem do symbolu ćwierćnuty chorągiewek: jednej w przypadku ósemki,
 dwóch dla szesnastki i tak dalej.
 
 Zapisując wiele ósemek lub krótszych nut obok siebie
-\textcolor{red}{należy połączyć je belkami w grupy odpowiadające podziałowi metrycznemu utworu:
+należy połączyć je belkami w grupy odpowiadające podziałowi metrycznemu utworu:
 dla przykładu jeśli podstawową jednostką metryczną w utworze (dolną nutą w oznaczeniu metrum) jest ćwierćnuta,
 nuty łączymy w grupy o długości jednej ćwierćnuty (dwie ósemki czy też cztery szesnastki).
 Ilość belek odpowiada ilości chorągiewiek dla danego typu nuty. Przykład takiego zapisu widzimy
-na rysunku~\ref{fig:belki}. XXX Opis metrum jest dopiero stronę dalej :/}
+na rysunku~\ref{fig:belki}. XXX Opis metrum jest dopiero stronę dalej :/
 
 \begin{figure}[h!]
     \centering
@@ -169,9 +169,9 @@ jednej ósemki.
 \end{figure}
 
 Aby zaznaczyć w zapisie nutowym ciszę w utworze używa się \emph{pauz}.
-\textcolor{red}{Pauzy mają takie
+Pauzy mają takie
 same długości jak odpowiadające im nuty, nie mają jednak wysokości -- zapisujemy je
-w~ustalonych miejscach na pięciolinii.}
+w~ustalonych miejscach na pięciolinii.
 
 \begin{figure}[h!]
     \centering
@@ -195,9 +195,7 @@ pozycji nuty na pięciolinii. Nuty mozemy zapisywać albo na liniach, albo pomi�
 na pięciolinii jest zatem 11 pozycji na których możemy umieścić nuty (licząc pozycję pod
 najniższą oraz nad najwyższą linią). Aby umieścić na pięciolinii większy zakres dźwięków
 dopisuje się dodatkowe kreski pod lub nad pięciolinią, zmieniając ją na pewnym odcinku
-\textcolor{red}{
 w niejako „siedmiolinię” bądź „dziewięciolinię” (tak jak na rysunku~\ref{fig:dodane}).
-}
 
 \begin{figure}[h!]
     \centering
@@ -212,7 +210,7 @@ w niejako „siedmiolinię” bądź „dziewięciolinię” (tak jak na rysunku
     \label{fig:dodane}
 \end{figure}
 
-\textcolor{red}{W muzyce używamy tylko dźwięków o określonych częstotliwościach, i opisujemy
+W muzyce używamy tylko dźwięków o określonych częstotliwościach, i opisujemy
 je literami alfabetu. Dźwięk \begin{math} C_4 \end{math} (czwarty, a zatem środkowy dźwięk C
 na standardowej klawiaturze pianina) ma częstotliwość około 261.6 Hz).
 \begin{math} D_4 \end{math}, będący dźwiękiem o jeden ton wyższym (następny biały klawisz)
@@ -221,29 +219,29 @@ kolejnymi dźwiękami zmieniają się nieregularnie: nie wynoszą one około 36 
 z różnicy częstotliwości \begin{math} C_4 \end{math} i \begin{math} D_4 \end{math}.
 Dźwięki w kolejnych \emph{oktawach} natomiast mają zawsze częstotliwość około dwa razy większą
 niż dźwięk z poprzedniej oktawy. (\begin{math} C_5 \end{math} ma w przyblizeniu dwa razy
-większą częstotliwość niż \begin{math} C_4 \end{math} -- 523.251 Hz).}
+większą częstotliwość niż \begin{math} C_4 \end{math} -- 523.251 Hz).
 
-\textcolor{red}{Istnieje wiele notacji zapisu z której oktawy pochodzi dany dźwięk. Do tej pory
+Istnieje wiele notacji zapisu z której oktawy pochodzi dany dźwięk. Do tej pory
 używaliśmy \emph{notacji naukowej} (ang. \emph{scientific pitch notation}), ze względu na jej
 czytelność oraz fakt, iż dobrze oddaje pozycje dźwięków na klawiaturze pianina.
 W formacie Lilypond, który program generuje jako stadium pośrednie generowania arkusza muzycznego
 używana jest notacja Helmholtza: \begin{math} C_4 \end{math} zapisujemy
 w~niej jako «\begin{math} c' \end{math}», \begin{math} C_2 \end{math} zaś jako
-«\begin{math} c, \end{math}».}
+«\begin{math} c, \end{math}».
 
-\textcolor{red}{Indeksy dolne przy nazwach dźwięków mówią nam, z której oktawy pochodzi dźwięk.
+Indeksy dolne przy nazwach dźwięków mówią nam, z której oktawy pochodzi dźwięk.
 Oktawą nazywamy \emph{interwał} o długości 8 dźwięków, czyli odległość między dźwiękiem, a
 dźwiękiem leżącym 8 klawiszy dalej na klawiaturze pianina. Na typowej klawiaturze znajduje się
 8~oktaw, tak więc znajdują się tam dźwięki z zakresu nie węższego niż od
 \begin{math} C_1 \end{math} do \begin{math} C_8 \end{math}. \begin{math} C_1 \end{math} jest
 dźwiękiem C znajdującym się najbardziej z lewej (o najniższej częstotliwości),
-\begin{math} C_8 \end{math} zaś najbardziej z prawej strony klawiatury.}
+\begin{math} C_8 \end{math} zaś najbardziej z prawej strony klawiatury.
 
-\textcolor{red}{Widać zatem, że zakres dźwięków na klawiaturze pianina wielokrotnie przewyższa
+Widać zatem, że zakres dźwięków na klawiaturze pianina wielokrotnie przewyższa
 zakres dźwięków które można zapisać
 na pięciolinii.
 Aby określić którym dźwiękom odpowiadają które linie używa się \emph{klucza}. Różne klucze
-przypisują liniom konkretne dźwięki.}
+przypisują liniom konkretne dźwięki.
 
 \begin{figure}[h!]
     \centering
@@ -753,7 +751,7 @@ podzielnik (np. standardowe C), a następnie wszystkie dźwięki poniżej tegoż
 zapisuje prawej ręce, z pozostałe lewej (pauzy trafiają do obu rąk równocześnie).
 Podzielnik jest, podobnie jak w przypadku rozdzielczości przy wyznaczaniu długości
 nut, dobierany wielokrotnie, aby następnie w wyników cząstkowych na podstawie
-funkcji oceny wybrać ten najlepszy (TODO: wcale nie jest, jest zahardkodowany).
+funkcji oceny wybrać ten najlepszy.
 
 Druga metoda, nazwana metodą „śledzącą” nie ma sztywnego podzielnika według
 którego dzieli nuty. Zamiast tego, jak sama nazwa wskazuje, śledzi ruchy rąk na
@@ -775,10 +773,69 @@ rozwiązaniem jest wówczas to, w którym partie obu rąk mają równą długoś
 % Tak samo opis funkcji oceny jak poprzednio
 
 Dodatkowo karane są te wyniki, w których ręce przekraczają barierę standardowego C:
-jeśli dzieje się to zbyt często, dźwięki te są prawdopodobnie źle sklasyfikowane.
-(TODO: wcale nie są za to karane).
+jeśli dzieje się to zbyt często, dźwięki te są prawdopodobnie źle sklasyfikowane,
+\textcolor{red}{toteż za każdy półton o który dźwięk przekracza \begin{math} C_5 \end{math}
+do funkcji oceny dodawany jest jeden punkt.}
 
-% przykład z obrazkiem
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    upper = {
+        \key c \major
+        \clef "treble"
+        e'4 f'4 g'4 a'4
+    }
+    lower = {
+        \key c \major
+        \clef "bass"
+        b4 c'4 b4 c'4
+    }
+    \score {
+        \new PianoStaff <<
+            \time 4/4
+            \new Staff = "upper" \upper
+            \new Staff = "lower" \lower
+        >>
+        \layout { }
+    }
+    \end{lilypond}
+    \caption{Przykład dobrego podziału rąk (wokół dźwięku D5, 0 punktów karnych)}
+    \label{fig:podzial_dobry}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+    upper = {
+        \key c \major
+        \clef "treble"
+        g'4 a'4
+    }
+    lower = {
+        \key c \major
+        \clef "bass"
+        << b4 e'4 >> << c'4 f'4 >> b4 c'4
+    }
+    \score {
+        \new PianoStaff <<
+            \time 4/4
+            \new Staff = "upper" \upper
+            \new Staff = "lower" \lower
+        >>
+        \layout { }
+    }
+    \end{lilypond}
+    \caption{Przykład złego podziału rąk (wokół dźwięku Fs5, 9,5 punktów karnych)}
+    \label{fig:podzial_zly}
+\end{figure}
+
+\textcolor{red}{W przykładzie z~rysunku~\ref{fig:podzial_zly} widzimy 2 dźwięki,
+\begin{math} E_5 \end{math} oraz \begin{math} F_5 \end{math} które znalazły się nie w tej
+ręce, w której powinny. Pomiędzy tymi dźwiękami, a \begin{math} C_5 \end{math} jest odpowiednio
+4 i 5 półtonów, co razem daje nam 9 punktów karnych. Dodatkowo, w~rysunku~\ref{fig:podzial_zly}
+dolna ręka jest o półnutę (dwie ćwierćnuty) krótsza niż górna ręka, toteż zapis ten otrzymuje
+dodatkowo pół punktu karnego. Zapis z~rysunku~\ref{fig:podzial_dobry} ma zatem o 9,5 punktu
+lepszy wynik, niż ten z~rysunku~\ref{fig:podzial_zly}, jest więc wybrany jako ten lepszy.}
 
 \subsection{Określenie tempa utworu}
 
