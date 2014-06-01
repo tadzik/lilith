@@ -23,6 +23,7 @@ $win->add_accel_group($accel_group);
 my $file_entry;
 my $tempo_entry;
 my $resolution_entry;
+my $hand_divisor;
 my $editor;
 my $cli_frame;
 my $cli_log;
@@ -75,7 +76,6 @@ sub generate_preview {
 
 my $load_midi;
 $load_midi = sub {
-    say "Loading midi";
     my $filename = shift // $file_entry->get_text() // return;
     $file_entry->set_text($filename);
 
@@ -91,6 +91,7 @@ $load_midi = sub {
         $save_history = 1;
         $tempo_entry->set_text($meta->{tempo});
         $resolution_entry->set_text($meta->{resolution});
+        $hand_divisor->set_text($meta->{hand_divisor} // '');
         my %method_to_index = (simple => 1, tracing => 2);
         # Look forward for "worst hack ever"
         my $old = $load_midi;
@@ -111,10 +112,13 @@ sub get_opts {
     my $tempo = $tempo_entry->get_text;
     $tempo = undef if ($tempo eq '');
     my $resolution = $resolution_entry->get_text;
-    $resolution = undef if ($resolution eq '');
+    $resolution = undef if $resolution eq '';
+    my $hand_divisor = $hand_divisor->get_text;
+    $hand_divisor = undef if $hand_divisor eq '';
     return (
         omit_version => 1,
         hand_division => $hand_div[$hand_division->get_active],
+        hand_divisor => $hand_divisor,
         tempo => $tempo,
         resolution => $resolution,
     );
@@ -325,6 +329,14 @@ my $vbox = Gtk2::VBox->new;
     $hand_division->signal_connect(changed => sub { $load_midi->() });
     $hbox->pack_start($label, 0, 0, 0);
     $hbox->pack_start($hand_division, 0, 0, 0);
+
+    $label = Gtk2::Label->new("Hand divisor:");
+    $hand_divisor = Gtk2::Entry->new;
+    $hand_divisor->signal_connect(activate => sub {
+        $load_midi->();
+    });
+    $hbox->pack_start($label, 0, 0, 0);
+    $hbox->pack_start($hand_divisor, 0, 0, 0);
 
     $label = Gtk2::Label->new("Resolution:");
     $resolution_entry = Gtk2::Entry->new;

@@ -135,10 +135,10 @@ sub duration_to_type {
     }
 }
 
-sub divide_hands_simple {
+sub divide_hands_simple_by_divisor {
     my (@upper, @lower);
     my ($upper_legit, $lower_legit);
-    my $divisor = 63; # Ds5, a magical key betwen C3 and C5
+    my $divisor = shift;
     for my $outer (@_) {
         my (@cands_l, @cands_u);
         for (@$outer) {
@@ -162,7 +162,29 @@ sub divide_hands_simple {
     unless ($lower_legit) {
         @lower = ()
     }
-    return \@upper, \@lower, { hand_division => 'simple' }
+    return \@upper, \@lower, { hand_division => 'simple', hand_divisor => $divisor }
+}
+
+sub divide_hands_simple {
+    my $conf = shift;
+    if ($conf->{hand_divisor}) {
+        return divide_hands_simple_by_divisor($conf->{hand_divisor}, @_);
+    }
+    my ($best_score, @best_res) = 999;
+    my $divisor = 55;
+    while ($divisor <= 67) {
+        my @res = divide_hands_simple_by_divisor($divisor, @_);
+        my $score = rate_hand_division(@res);
+        if ($score <= $best_score) {
+            LOGN "$score ($MIDI::number2note{$divisor}) wins so far...";
+            $best_score = $score;
+            @best_res = @res;
+        } else {
+            LOGN "Score for $MIDI::number2note{$divisor} is $score";
+        }
+        $divisor++;
+    }
+    return @best_res;
 }
 
 sub divide_hands_tracing {
@@ -170,8 +192,8 @@ sub divide_hands_tracing {
     # to even better trace hand positioning
     my (@upper, @lower);
     my ($upper_legit, $lower_legit);
-    my $lastlower = 48; # C3
-    my $lastupper = 74; # C5
+    my $lastlower = 48; # C4
+    my $lastupper = 72; # C6
     for my $outer (@_) {
         my (@cands_l, @cands_u);
         for (@$outer) {
@@ -206,14 +228,36 @@ sub divide_hands_tracing {
 
 sub rate_hand_division {
     my ($upper, $lower) = @_;
+    my $score = 0;
+    my $middle = $MIDI::note2number{'C5'};
+    for (@$upper) {
+        for (@$_) {
+            next if $_->{idx} == -1;
+            if ($_->{idx} < $middle) {
+                printf "%s (in upper hand) punished for %d\n",
+                       note_to_lilypond($_), abs($_->{idx} - $middle);
+                $score += abs($_->{idx} - $middle);
+            }
+        }
+    }
+    for (@$lower) {
+        for (@$_) {
+            next if $_->{idx} == -1;
+            if ($_->{idx} > $middle) {
+                printf "%s (in lower hand) punished for %d\n",
+                       note_to_lilypond($_), $_->{idx} - $middle;
+                $score += $_->{idx} - $middle;
+            }
+        }
+    }
 
     my $ulen = total_length(@$upper);
     my $llen = total_length(@$lower);
     if (!$ulen or !$llen) {
-        # it's probably one-handed
-        return -1
+        # one-handed score
+        return $score
     }
-    return abs($ulen - $llen);
+    return $score + abs($ulen - $llen);
 }
 
 sub divide_hands {
@@ -221,13 +265,13 @@ sub divide_hands {
     {
         no warnings 'uninitialized';
         if ($conf->{hand_division} eq 'simple') {
-            return divide_hands_simple(@_)
+            return divide_hands_simple($conf, @_)
         } elsif ($conf->{hand_division} eq 'tracing') {
             return divide_hands_tracing(@_)
         }
     }
     # let's try both and see which is better
-    my @result_s = divide_hands_simple(@_);
+    my @result_s = divide_hands_simple($conf, @_);
     my @result_t = divide_hands_tracing(@_);
     # lower is better
     my $score_s = rate_hand_division(@result_s);
@@ -396,16 +440,15 @@ sub get_notes {
         for (31..60) {
             my @new = get_notes_polling($_, @events);
             my $score = rate_notes(@new);
-            #say "$_ => $score";
+            LOGN "Polling for resolution($_) => $score";
             if ($score < $bestscore) {
-                #say "Resolution $_ is now winning";
+                LOGN "Resolution $_ is now winning!";
                 $resolution = $_;
                 $bestscore = $score;
                 @notes = @new;
             }
         }
     }
-    #say "Best score is $bestscore";
 
     my ($upper, $lower, $meta) = divide_hands($conf, @notes);
 
@@ -546,16 +589,52 @@ sub guess_tempo {
     }
 }
 
+sub parse_hand_divisor {
+    my $div = shift;
+    return $div unless $div;
+    my $res;
+    if ($div =~ /^\d+$/) {
+        $res = $div;
+    } elsif ($div =~ /^([a-zA-Z]+)(\'*|\,*)$/) {
+        my ($note, $octave) = (ucfirst($1), $2);
+        $note =~ s/is/s/;
+        my $suffix = 4;
+        if ($octave =~ /^\'+$/) {
+            $suffix += length($octave);
+        } elsif ($octave =~ /^\,+$/) {
+            $suffix -= length($octave);
+        }
+        $res = $MIDI::note2number{$note . $suffix}
+    } else {
+        $res = $MIDI::note2number{$div}
+    }
+    LOGN "Hand divisor parsed as $res";
+    return $res or die "Unable to parse hand divisor: $div";
+}
+
+sub format_hand_divisor {
+    my $divisor = shift;
+    my $foo = lc $MIDI::number2note{$divisor};
+    $foo =~ s/s/is/;
+    $foo =~ /^(\D+)(\d+)$/;
+    if ($2 > 4) {
+        return $1 . ("'" x ($2 - 4))
+    }
+    return $1 . ("," x (4 - $2))
+}
+
 sub generate {
     my ($opts, @events) = @_;
     my $key = $opts->{key} // Lilith::KeyGuesser::guess(@events)->[0];
     LOGN "Guessed key: $key";
+    $opts->{hand_divisor} = parse_hand_divisor($opts->{hand_divisor});
     my ($upper, $lower, $meta) = get_notes($opts, @events);
     my $tempo = $opts->{tempo} // ($upper ? guess_tempo(@$upper) : guess_tempo(@$lower));
     LOGN "Guessed tempo: $tempo";
 
     my $lilypond = to_lilypond($key, $tempo, $upper, $lower, $opts);
     if (wantarray) {
+        $meta->{hand_divisor} = format_hand_divisor($meta->{hand_divisor});
         return $lilypond, { %$meta, tempo => $tempo };
     }
     return $lilypond;

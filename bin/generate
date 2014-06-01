@@ -8,11 +8,12 @@ use Getopt::Long;
 use MIDI;
 use Lilith;
 
-my ($keep, $key, $clef, $tempo, $verbose);
+my ($keep, $key, $clef, $tempo, $verbose, $hand_divisor);
 
 GetOptions("key=s" => \$key,
            "tempo=s" => \$tempo,
            "clef=s" => \$clef,
+           "hand_divisor=s" => \$hand_divisor,
            "keep-ly" => \$keep,
            "verbose" => \$verbose,
 ) or do { say "Error processing command-line arguments: $!"; exit 1 };
@@ -21,6 +22,7 @@ $opts{keep} = $keep;
 $opts{key} = $key if $key;
 $opts{clef} = $clef if $clef;
 $opts{tempo} = $tempo if $tempo;
+$opts{hand_divisor} = $hand_divisor if $hand_divisor;
 
 my $o = MIDI::Opus->new({ from_file => ($ARGV[0] or do {
     say "Usage: $0 <midi file>";
