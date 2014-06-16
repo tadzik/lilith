@@ -5,6 +5,7 @@
 \usepackage{hyperref}
 \usepackage{pgfplots}
 \usepackage{color}
+\usepackage{graphicx}
 \pgfplotsset{compat=newest}
 \title{Generowanie arkuszy muzycznych na podstawie sygnału MIDI z instrumentów klawiszowych}
 \author{Tadeusz Sośnierz}
@@ -285,6 +286,13 @@ Zdarza się, że klucz zmienia się w trakcie utworu, zazwyczaj jednak jest on z
 jedynie raz, na samym początku pięciolinii, i pozostaje taki sam przez cały utwór aż
 do końca.
 
+\textcolor{red}{Może się również zdarzyć, iż obie ręce będą zapisane w kluczu wiolinowym
+(bądź basowym). Występuje to jednak bardzo rzadko, i program nie obsługuje takiego przypadku,
+ponieważ w praktyce niezwykle trudne okazałoby się dzielenie na ręce utworu, w którym znajdują
+się one bardzo blisko siebie czy nawet zachodzą jedna na drugą. Udostępiona jest jednak możliwość
+ręcznej zmiany kluczy w edytorze, co po ręcznym ustawieniu podzielinka rąk umożliwi wygenerowanie
+poprawnego arkusza nawet dla tak wyszukanego przypadku.}
+
 TODO: Coś o tym, że odległości na pięciolinii to jak białe klawisze w pianinie, czy cuś.
 
 Każdy utwór posiada \emph{metrum}, które definiuje nam jak wiele nut składa się na jeden
@@ -359,6 +367,68 @@ TODO: o tonacjach.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\section{Architektura projektu}
+
+Program w ogólności służy do zamieniania nagrań muzycznych w reprezentację graficzną.
+W praktyce jednak przetwarza on pliki MIDI, a produkuje tekst w formacie Lilypond
+(nazwą którego została zainspirowana nazwa programu: \emph{Lilith}). Zamianą takiego zapisu
+na reprezentację graficzną zajmuje się program GNU Lilypond, będący zewnętrzną zależnością
+projektu.
+
+Nagrania w formacie MIDI można pozyskać z niemal każdego cyfrowego pianina, bardzo często za
+pomocą połączenia USB z komputerem. Dlaczego jednak używamy formatu MIDI, zamiast analizować
+nagrania z dowolnego, niekoniecznie cyfrowego instrumentu? Niestety, nawet najbardziej
+szczegółowa analiza sygnału dźwiękowego nie zawsze uda się precyzyjnie przełożyć na zbiór
+wygrywanych dźwięków, a akustyka instrumentu czy pomieszczenia wpłynie na przekłamania w ich
+długości. Problem którym zajmuje się ta praca jest problemem wyznaczenia \emph{sposobu wykonania}
+utworu, nie jedynie wyznaczenia jego docelowego brzmienia, potrzebne jest zatem jak najwięcej
+informacji, jak najbardziej szczegółowe i prezycyjne dane o wykonaniu źródłowym. Narzędzie
+kierowane jest głównie do muzyków, którym próbuje zastąpić żmudne przepisywanie swoich utworów
+i aranżacji ręcznie, nie służy zaś do rozpoznawania arbitralnych utworów usłyszanych na
+przykład w radiu, toteż format MIDI jest najlepszym kompromisem między wygodą użytkownika a
+jakością efektu końcowego.
+
+Przetwarzanie samego sygnału MIDI jest realizowane za pomocą Perlowego modułu (biblioteki)
+MIDI\footnote{\url{https://metacpan.org/pod/MIDI}}. Program Lilith używa go do sprawdzenia
+poprawności pliku źródłowego oraz przetworzenie binarnych danych na strukturę danych sposobną
+do dalszego przetwarzania.
+
+Standard MIDI zawiera obsługę wielu urządzeń i efektów które nigdy nie występują podczas
+utworów granych na pianinie, więc też nie wszystkie dane przetworzone przez moduł MIDI
+są analizowane przez program. Strumień MIDI może się składać z wielu \emph{ścieżek}, z których
+każda zawiera serię \emph{zdarzeń}. W naszym przypadku interesuje nas tylko jedna ze ścieżek
+(jeden instrument), a i spośród zdarzeń będą interesować nas głównie zdarzenia wciskania oraz
+puszczania klawiszy: \texttt{note\_on} oraz \texttt{note\_off}. Pozostałe są potrzebne tylko do
+wyliczania indeksów czasowych: w MIDI każde zdarzenie jest umiejscowione w czasie relatywnie do
+poprzedniego, tak więc podczas przetwarzania kolejnych zdarzeń aktualny indeks czasowy jest
+uaktualniany po każdym z nich, aby być w stanie określić, w którym momencie wystąpiły wciśnięcia
+i puszczenia klawiszy. Czas jest mierzony nie w jednostkach SI, a w ilości taktów zegara z
+urządzenia źródłowego. Przełozenie tegoż na sekundy jest możliwe, jednak ze względu na
+fakt, iż długości dźwięków w muzyce nie mają odgórnie określonych długości, mierzenie czasu
+w sekundach jest zbędne.
+
+Cała logika programu zawarta jest w module \texttt{Lilith}, dostarczającym funkcję
+\texttt{generate}, zamieniającą ciąg zdarzeń MIDI na tekst w formacie Lilypond.
+Szczegółowy opis metody tejże zamiany jest zawarty w następnym rozdziale. Narzędziem dla
+użytkownika jest program \texttt{lilith-gtk}, który implementuje wygodny interfejs użytkownika
+używając biblioteki Gtk+\footnote{\url{https://developer.gnome.org/gtk2/stable/}} używając
+modułu texttt{Lilith} do samego przetwarzania. Dostarczony jest również interfejs konsolowy,
+\texttt{lilith-cli}, będący nieinteraktywnym narzedzięm produkującym pliki w formacie PDF
+z zadanych plików w formacie MIDI, udostępniając również wszystkie opcje konfiguracyjne jakie
+wspiera API modułu \texttt{Lilith}. Nic nie stoi również na przeszkodzie aby zaimplementować
+własny interfejs, będący na przykład aplikacją WWW.
+
+Program został napisany i testowany na systemie Linux. O ile sam moduł \texttt{Lilith} nie
+korzysta z niczego, co przeszkadzałoby w uruchomieniu go na przykład na systemie Windows,
+o tyle jego interfejs w Gtk (które samo w sobie potrafi sprawić na Windows niemało problemów)
+korzysta między innymi z narzędzia \texttt{arecordmidi} pochodzącego z Linuksowego pakietu
+\texttt{alsa-utils}. Możliwym byłoby dostosowanie \texttt{lilith-gtk} (być może w pewnym tylko
+stopniu) do pracy pod Windows, nie zostało to zrealizowane w ramach tego projektu. Pod niemal
+każdym systemem Uniksowym (Perl jest dostępny na ponad 100 różnych platform) program powinien
+działać w stu procentach bez dodatkowych zabiegów.
+
 
 \newpage
 \section{Opis algorytmu}
@@ -769,13 +839,17 @@ Na koniec z obu metod podziału na ręce wybierana jest ta dająca lepszy wynik.
 Funkcja oceny jakości wyniku liczy sumaryczną długość nut w obu rękach, a następnie
 przyznaje punkty karne w ilości różnicy długości partii obu rąk -- idealnym
 rozwiązaniem jest wówczas to, w którym partie obu rąk mają równą długość.
+\textcolor{red}{Wyjątkiem jest przypadek, gdy jedna z rąk ma długość zerową, co zdarza się
+w przypadku prostych utworów, takich jak opisywany wcześniej „Wlazł kotek na płotek”. Takie
+przypadki nie są karane ze względu na różnicę długości rąk. (FIXME: „Długość rąk” to chyba
+trzebaby w jakiś cudzysłowie zapisać tam, gdzie się pierwszy raz pojawia)}
 
 % Tak samo opis funkcji oceny jak poprzednio
 
 Dodatkowo karane są te wyniki, w których ręce przekraczają barierę standardowego C:
 jeśli dzieje się to zbyt często, dźwięki te są prawdopodobnie źle sklasyfikowane,
-\textcolor{red}{toteż za każdy półton o który dźwięk przekracza \begin{math} C_5 \end{math}
-do funkcji oceny dodawany jest jeden punkt.}
+toteż za każdy półton o który dźwięk przekracza \begin{math} C_5 \end{math}
+do funkcji oceny dodawany jest jeden punkt.
 
 \begin{figure}[h!]
     \centering
@@ -809,7 +883,7 @@ do funkcji oceny dodawany jest jeden punkt.}
     upper = {
         \key c \major
         \clef "treble"
-        g'4 a'4
+        g'4 a'4 r4 r4
     }
     lower = {
         \key c \major
@@ -829,17 +903,284 @@ do funkcji oceny dodawany jest jeden punkt.}
     \label{fig:podzial_zly}
 \end{figure}
 
-\textcolor{red}{W przykładzie z~rysunku~\ref{fig:podzial_zly} widzimy 2 dźwięki,
+W przykładzie z~rysunku~\ref{fig:podzial_zly} widzimy 2 dźwięki,
 \begin{math} E_5 \end{math} oraz \begin{math} F_5 \end{math} które znalazły się nie w tej
 ręce, w której powinny. Pomiędzy tymi dźwiękami, a \begin{math} C_5 \end{math} jest odpowiednio
 4 i 5 półtonów, co razem daje nam 9 punktów karnych. Dodatkowo, w~rysunku~\ref{fig:podzial_zly}
-dolna ręka jest o półnutę (dwie ćwierćnuty) krótsza niż górna ręka, toteż zapis ten otrzymuje
+\textcolor{red}{partia lewej ręki (na dole zapisu)
+jest o półnutę (dwie ćwierćnuty) krótsza niż partia prawej ręki}, toteż zapis ten otrzymuje
 dodatkowo pół punktu karnego. Zapis z~rysunku~\ref{fig:podzial_dobry} ma zatem o 9,5 punktu
-lepszy wynik, niż ten z~rysunku~\ref{fig:podzial_zly}, jest więc wybrany jako ten lepszy.}
+lepszy wynik, niż ten z~rysunku~\ref{fig:podzial_zly}, jest więc wybrany jako ten lepszy.
 
 \subsection{Określenie tempa utworu}
 
 \subsection{Dynamika}
+
+\section{Opis interfejsu i obsługi programu}
+
+W poniższym rozdziale opisany zostanie interfejs programu oraz zostaną przedstawione
+dwa przykłady konwersji utworów na zapisy nutowe.
+
+Na rysunku~\ref{fig:screenshot1} widzimy interfejs powitalny programu. Na jego szczycie (1)
+widzimy belkę z menu. Sekcja \texttt{File} pozwoli nam na wyeksportowanie rezultatu
+do pliku PDF bądź zapisanie jego reprezentacji w formacie Lilypond do dalszej obróbki.
+W sekcji \texttt{Edit} mamy znajome opcje \texttt{Undo} oraz \texttt{Redo} do edytora tekstu,
+dostępne również w formie skrótów klawiszowych \texttt{Ctrl+Z} i \texttt{Ctrl+Shift+Z}.
+Sekcja \texttt{Help} zawiera odnośnik do strony internetowej ze szczegółowym opisem formatu
+Lilypond oraz możliwość otwarcia okna z informacjami o programie i autorze.
+
+Poniżej menu znajduje się pole tekstowe (2) zawierające nazwę aktualnie analizowanego pliku. Plik
+ten możemy otworzyć za pomocą znajdującego się z prawej strony przycisku \texttt{Open} lub też
+utworzyć nagranie prosto z instrumentu klawiszowego za pomocą leżącego tamże przycisku
+\texttt{Record} (3).
+
+W następnej kolejności interfejs zawiera serię pól tekstowych oraz pole wyboru za pomocą których
+możemy zmienić parametry analizatora. Nie warto jednak robić tego przed załadowaniem nagrania --
+pola te zostaną automatycznie wypełnione po otwarciu pliku parametrami które analizator wybrał
+przetwarzając utwór. Bardzo często nie będą one wymagać żadnych zmian ze strony użytkownika.
+
+Pole obok znacznika \texttt{Tempo} (4) zawiera metrum utworu;
+\texttt{Hand division method} (5) pozwala
+nam wybrać między dwoma metodami podziału utworu na ręce, \texttt{Hand divisor} (6) daje nam
+możliwość ręcznego wybrania podzielnika rąk w obu metodach, zaś wreszczie \texttt{Resolution} (7)
+zawiera wybraną rozdzielczość próbkowania sygnału MIDI.
+
+Największą część okna programu zawierają dwa panele: po prawej stronie znajduje się miejsce na
+wygenerowany zapis utworu w formie graficznej (11). Z lewej strony zaś widnieje miejsce na
+reprezentację tegoż utworu w formacie Lilypond (9), przycisk (8) zlecający programowi odświeżenie
+widoku utworu na prawym panelu (\textcolor{red}{generowanie podglądu jest wykonywane w tym
+samym wątku, co interfejs programu, jednak nawet na słabszych komputerach proces ten nie trwa
+dłużej niż kilka sekund, więc nie będzie do stanowić problemu dla użytkownika}),
+a także, pod edytorem, interfejs dla wbudowanego mechanizmu
+\emph{Search \& Replace} (10). W polu opisanym \texttt{Pattern} umieszczamy wzorzec który będzie
+szukany, w \texttt{Replacement} zaś tekst który ma być wstawiony zamiast odnalezionych wystąpień
+wzorca. Użyteczną informacją może okazać się fakt, iż w \texttt{Pattern} możemy umieścić dowolne
+wyrażenie regularne z języka Perl -- co więcej, w \texttt{Replacement} może znaleźć się dowolny
+kod Perla modyfikujący wynik dopasowania takiego wyrażenia. Możemy zatem na przykład zamienić
+wszystkie liczby na dwa razy większe wprowadzając \texttt{(\textbackslash{}d+)} jako wzorzec i
+\texttt{\$1~*~2} jako tekst to wstawienia.
+
+\textcolor{red}{Ewaluowanie kodu wpisanego w programie
+można uznać za lukę bezpieczeństwa, jednak w praktyce nie stanowi ona żadnego zagrożenia. Do
+eskalacji uprawnień mogłoby dojść jedynie wtedy, gdyby program był uruchamiany z uprawnieniami
+administratora, a wówczas zagrożenie stanowiłbym sam fakt, że program zawiera w sobie edytor
+tekstu mogący otwierać i zapisywać pliki, co użytkownik mógłby wykorzystać na przykład w celu
+podmiany plików systemowych. Przy prawidłowo skonfigurowanym systemie jednak jedynym
+zastosowaniem „luki” byłoby wywołanie błędu w uruchamianym programie (i to też w ograniczonym
+zakresie, ponieważ wszystkie wyjątki mogące wystąpić w kodzie wpisanym z interfejsu są łapane
+i wypisywane na ekran). W połączeniu z faktem, iż program jest dystrybuowany w formie skryptu
+Perla, z kodem źródłowym dostępnym dla każdego użytkownika mającego do niego dostęp sprawia,
+że wywoływanie kodu w ten sposób nie stanowi żadnego niebezpieczeństwa.}
+
+Niemal na samym dole ekranu znajduje się pole \texttt{CLI output} (12), zazwyczaj zwinięte.
+W przypadku błędów we wpisanym przez użytkownika zapisie w formacie Lilypond, bądź też
+nieoczekiwanych błędów wewnętrznych programu pole to rozwija sie i wypełnia komunikatem
+o błędzie.
+
+Ostatnim elementem jest pasek statusu (13), który wyświetla informacje o przebiegu działania
+programu.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{screenshot1.png}
+    \caption{Interfejs powitalny programu}
+    \label{fig:screenshot1}
+\end{figure}
+
+Zobaczmy zatem jak program sprawdza się w akcji. Załadujmy do programu nagranie wykonania
+popularnej piosenki „Wlazł kotek na płotek”, znajdującej się w pliku
+\texttt{samples/wlazkotek.mid}. Możemy użyć do tego przycisku \texttt{Open}, lub wybrać
+odpowiednią pozycję z menu -- efekt będzie taki sam.
+
+Na rysunku~\ref{fig:screenshot2} widzimy fragment okna programu zaraz po załadowaniu pliku.
+Jak widać, pola z górnej części okna zostały uaktualnione informacjami wydedukowanymi przez
+program: metrum zostało wyznaczone na 3/4, program użył metody śledzącej celem ustalenia podziału
+rąk (w tym akurat przypadku program doszedł za pomocą tej metody do poprawnego wniosku, iż
+utwór był grany jedną ręką), wybrał \begin{math} C_5 \end{math} jako podzielnik rąk, oraz
+wybrał 42 jako rozdzielczość próbkowania sygnału MIDI.
+
+Zapis utworu w formacie Lilypond został umieszczony w oknie edytora, zaś ten sam zapis
+skompilowany do postaci graficznej widzmy po prawej stronie edytora.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{screenshot2.png}
+    \caption{Fragment interfejsu po załadowaniu pliku \texttt{samples/wlazkotek.mid}}
+    \label{fig:screenshot2}
+\end{figure}
+
+Utwór został w zasadzie bezbłędnie przełożony na odpowiadający mu zapis nutowy. Można jednak
+zauważyć, iż ostatni takt utworu jest niepełny. Na jego końcu powinna znajdować się pauza
+ćwierćnutowa. W formacie MIDI cisza nie jest oznaczona w żaden inny sposób niż brakiem sygnału,
+toteż cisza na końcu utworu jest z definicji niemożliwa do wykrycia. Taką brakującą pauzę możemy
+jednak łatwo dopisać, dodając \texttt{r4} na koniec zapisu w edytorze Lilypond. Po zatwierdzeniu
+zmian poprzez kliknięcie \texttt{Generate music sheet} otrzymujemy widoczną
+na~rysunku~\ref{fig:screenshot3} finalną wersję „Wlazł kotek na płotek”. Możemy teraz
+wyeksportować cały zapis do formatu PDF za pomocą opcji \texttt{Export to PDF} z menu
+\texttt{File}.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{screenshot3.png}
+    \caption{Fragment interfejsu po dodaniu pauzy na końcu utworu}
+    \label{fig:screenshot3}
+\end{figure}
+
+Po zaznajomieniu się z podstawami zobaczmy jak poradzić sobie z bardziej skomplikowanym utworem,
+którego nagranie zawiera pewne błędy wykonawcy.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{menuet_orig.jpg}
+    \caption{Oryginalny zapis nutowy Menueta G-dur BMW.Anh.114 Jana Sebastiana Bacha}
+    \label{fig:menuet_orig}
+\end{figure}
+
+Na rysunku~\ref{fig:menuet_orig} widzimy oryginalny zapis \emph{Menueta G-dur BMW.Anh.114}
+autorstwa Jana Sebastiana Bacha\footnote{Zapis ten jest zawarty w książce
+„50 Greats for the Piano”, Copyright \copyright{}2000 by YAMAHA MUSIC MEDIA CORPORATION}.
+Po nagraniu i załadowaniu utworu ukazuje nam się obraz widoczny na~rysunku\ref{fig:screenshot4}.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{screenshot4.png}
+    \caption{Wynik załadowania menueta do programu}
+    \label{fig:screenshot4}
+\end{figure}
+
+Jak nietrudno zauważyć, wygenerowany zapis znacząco odbiega od pierwowzoru. Zobaczmy, jak wiele
+zmian będzie potrzebnych aby otrzymać identyczny zapis jak ten, z którego grany był utwór.
+
+Najbardziej widoczną rzeczą jest niepoprawny podział utworu na ręce; widzimy, że algorytm wybrał
+dźwięk \begin{math} C_5 \end{math} jako podzielnik rąk (w notacji używanej przez Lilypond jest
+on zapisanywany jako \texttt{c'}). Wybierając zamiast niego dźwięk
+\begin{math} D\sharp \end{math} (\texttt{dis'} w notacji Lilypondowej) otrzymamy dużo lepszy
+i bardziej zgodny z oczekiwaniami wynik widoczny na~rysunku~\ref{fig:screenshot5}.
+
+Warto zaznaczyć, że podzielnik możemy podać do interfejsu w jednej z wybranych dowolnie trzech
+notacji: możemy zapisać go jako \texttt{Ds5}, wspomniane wyżej \texttt{dis'} czy
+nawet podając indeks klawisza (w tym przypadku 63); każda z tych form zostanie jednakowo
+zinterpretowana przez program.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{screenshot5.png}
+    \caption{Menuet po poprawieniu podzielinka rąk}
+    \label{fig:screenshot5}
+\end{figure}
+
+Następną rzeczą wartą poprawienia jest zmiana metrum utworu: zostało ono niepoprawnie wykryte
+jako 4/4 zamiast 3/4, być może przez błędny pierwotny podział rąk. Można je jednak łatwo poprawić
+wpisując 3/4 w polu \texttt{Tempo} i zatwierdzając klawiszem \texttt{Enter}. Wynik po poprawieniu
+metrum widzimy na~rysunku~\ref{fig:screenshot6}.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{screenshot6.png}
+    \caption{Menuet po poprawieniu tempa}
+    \label{fig:screenshot6}
+\end{figure}
+
+Aktualny wynik zaczyna coraz bardziej przypominać oryginał. Kolejną rzeczą wartą poprawienia jest
+skorygowanie drobnych błędów wykonawcy utworu.
+
+W dziewiątym takcie, w obu rękach, widzimy nieoczekiwaną pauzę ósemkową. Mogła się tam znaleźć
+zarówno przez zawahanie pianisty bądź też może być drobnym błędem wyznaczenia rozdzielczości
+próbkowania utworu. Niezależnie jednak skąd co doprowadziło do takiego stanu rzeczy pauzę możemy
+bez żadnego problemu wyeliminować. Edytor Lilypond jest okraszony komentarzami które pozwalają
+łatwo zidentyfikować dziewiąty takt w obu rękach, jednak jako że są to jedyne występujące pauzy
+w utworze, możemy się ich łatwo pozbyć wykorzystując wbudowany mechanizm
+\emph{Search \& Replace}.
+Zamieniając z jego pomocą wszystkie wystąpienia \texttt{r8} na ciąg znaków zerowej długości
+otrzymujemy wynik widoczny na~rysunku~\ref{fig:screenshot7}.
+
+\textcolor{red}{Warto zauważyć, że po usunięciu nut (czy też pauz) z utworu nie zostaje po nich
+puste miejsce, zamiast tego kolejne nuty i pauzy są przesuwane w lewo i zajmują miejsce tych
+usuniętych.}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{screenshot7.png}
+    \caption{Menuet po usunięciu nadmiarowych pauz}
+    \label{fig:screenshot7}
+\end{figure}
+
+Na tym etapie widzimy kilka błędnie określonych długości nut. W takcie dziesiątym oraz dwunastym
+znajdują się dźwięki \begin{math} G \end{math}, które zamiast ćwierćnutami stały się ósemkami.
+Po poprawieniu ich wartości na poprawne ukazuje się nam wynik widoczny
+na~obrazku~\ref{fig:screenshot8}. Na dole tegoż obrazka widać również wyrażenie regularne
+\texttt{g'8\textbackslash{}s+g'8}, które może posłużyć do szybkiej podmiany ósemek z taktu dwunastego na
+żądane wartości (w tym przypadku \texttt{g'4 g'4}).
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{screenshot8.png}
+    \caption{Menuet po poprawieniu długości dźwięków}
+    \label{fig:screenshot8}
+\end{figure}
+
+Na tym etapie pozostaje nam jedynie poprawienie długości nut na samym końcu utworu: w lewej ręce
+zamiast półnuty \texttt{g'2} powinniśmy byli mieć półnutę z kropką \texttt{g'2.}, zaś w ręce
+prawej półnutę \texttt{g,2} zamiast aktualnie obecnej tam ćwierćnuty \texttt{g,4}. Przypadek jest
+podobny do opisywanego na początku tego rozdziału braku pauz w piosence „Wlazł kotek na płotek”,
+tutaj jednak mamy do czynienia z błędem ludzkim: pośpieszny wykonawca oderwał palce od klawiszy
+nie „wytrzymując” kończącego utwór dwudźwięku przez całą jego długość. Po poprawieniu tego
+drobnego niedopatrzenia otrzymujemy widoczny na~rysunku~\ref{fig:menuet_final} końcowy zapis
+utworu, będący dokładnym odwzorowaniem zapisu z~rysunku~\ref{fig:menuet_orig}. Jedyną różnicą
+jest inna nieco długość dźwięków z taktu ósmego, w tym jednak przypadku była ona celowym
+zabiegiem wykonawcy i odzwierciedleniem jego wizji utworu, nie jest zatem traktowana jako błąd.
+
+\begin{figure}[h!]
+    \centering
+    \begin{lilypond}
+upper = {
+    \key g \major
+    \clef "treble"
+    %{ measures 1 to 4 %}
+d''4 g'8 a'8 b'8  c''8 | d''4 g'4 g'4 | e''4 c''8 d''8 e''8 fis''8 | 
+%{ measures 4 to 7 %}
+g''4 g'4 g'4 | c''4 d''8 c''8 b'8 a'8 | b'4  c''8 b'8 a'8 g'8 | fis'4 g'8 a'8  b'8 g'8 | 
+%{ measures 8 to 11 %}
+b'4 a'2 |     << d''4  >>  g'8 a'8 b'8 | c''8 d''4  g'4 g'4 | e''4 c''8 d''8 e''8 fis''8 | 
+%{ measures 12 to 15 %}
+g''4  g'4 g'4   c''4 | d''8 c''8 b'8  a'8 b'4 | c''8 b'8  a'8 g'8 a'4 | b'8 a'8 g'8 fis'8 g'2. | 
+%{ measures 16 to 19 %}
+}
+lower = {
+    \key g \major
+    \clef "bass"
+    %{ measures 1 to 4 %}
+<< g2 d'2 b2 >>    a4 |  b2. |   c'2. | 
+%{ measures 4 to 7 %}
+    b2. |   a2. |      g2. |     d'4 b4   g4 | 
+%{ measures 8 to 11 %}
+ d'4 d8 c'8 b8 a8 | b2     a4 |   g4 b4 g4 | c'2. | 
+%{ measures 12 to 15 %}
+     b4 c'8 b8  a8 g8 | a2    fis4 |  g2   b4 |   c'4 d'4  d4 | 
+%{ measures 16 to 19 %}
+  g2 g,4
+}
+\score {
+    \new PianoStaff <<
+        \time 3/4
+        \new Staff = "upper" \upper
+        \new Staff = "lower" \lower
+    >>
+    \layout { }
+}
+    \end{lilypond}
+    \caption{Finalna wersja utworu, po wszystkich poprawkach}
+    \label{fig:menuet_final}
+\end{figure}
+
+Łatwo sobie wyobrazić, ile czasu zajęłoby zapisanie takiego utworu wpisując ręcznie każdą nutę
+po kolei: a to przecież tylko krótki utwór. Wpisując go ręcznie na klawiaturze równocześnie
+grając fragmentami na klawiaturze pianina zajęłoby mnóstwo czasu, i podczas takiego procesu
+pomylilibyśmy się pewnie o wiele więcej razy, niż w powyższym przykładzie pomylił się program.
+\textcolor{red}{Błędy które wystąpiły mogliśmy również łatwo poprawić za pomocą narzędzi
+dostarczonych przez program.}
+
+\newpage
 
 \section{Bibliografia}
 
