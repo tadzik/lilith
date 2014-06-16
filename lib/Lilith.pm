@@ -223,7 +223,7 @@ sub divide_hands_tracing {
     unless ($lower_legit) {
         @lower = ()
     }
-    return \@upper, \@lower, { hand_division => 'tracing' }
+    return \@upper, \@lower, { hand_division => 'tracing', hand_divisor => 60 }
 }
 
 sub rate_hand_division {

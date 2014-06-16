@@ -419,7 +419,7 @@ my $vbox = Gtk2::VBox->new;
     $editor_frame->add($editor_box);
 
     $hpaned->add1($editor_frame);
-    my $image_frame = Gtk2::Frame->new('Here be preview');
+    my $image_frame = Gtk2::Frame->new('Preview');
     my $preview = Gtk2::ScrolledWindow->new;
     $image_frame->add($preview);
     $current_image = Gtk2::Image->new;
