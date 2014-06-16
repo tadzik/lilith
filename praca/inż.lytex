@@ -286,12 +286,12 @@ Zdarza się, że klucz zmienia się w trakcie utworu, zazwyczaj jednak jest on z
 jedynie raz, na samym początku pięciolinii, i pozostaje taki sam przez cały utwór aż
 do końca.
 
-\textcolor{red}{Może się również zdarzyć, iż obie ręce będą zapisane w kluczu wiolinowym
+Może się również zdarzyć, iż obie ręce będą zapisane w kluczu wiolinowym
 (bądź basowym). Występuje to jednak bardzo rzadko, i program nie obsługuje takiego przypadku,
 ponieważ w praktyce niezwykle trudne okazałoby się dzielenie na ręce utworu, w którym znajdują
 się one bardzo blisko siebie czy nawet zachodzą jedna na drugą. Udostępiona jest jednak możliwość
 ręcznej zmiany kluczy w edytorze, co po ręcznym ustawieniu podzielinka rąk umożliwi wygenerowanie
-poprawnego arkusza nawet dla tak wyszukanego przypadku.}
+poprawnego arkusza nawet dla tak wyszukanego przypadku.
 
 TODO: Coś o tym, że odległości na pięciolinii to jak białe klawisze w pianinie, czy cuś.
 
@@ -839,12 +839,11 @@ Na koniec z obu metod podziału na ręce wybierana jest ta dająca lepszy wynik.
 Funkcja oceny jakości wyniku liczy sumaryczną długość nut w obu rękach, a następnie
 przyznaje punkty karne w ilości różnicy długości partii obu rąk -- idealnym
 rozwiązaniem jest wówczas to, w którym partie obu rąk mają równą długość.
-\textcolor{red}{Wyjątkiem jest przypadek, gdy jedna z rąk ma długość zerową, co zdarza się
+Wyjątkiem jest przypadek, gdy partia jednej z rąk ma długość zerową, co zdarza się
 w przypadku prostych utworów, takich jak opisywany wcześniej „Wlazł kotek na płotek”. Takie
-przypadki nie są karane ze względu na różnicę długości rąk. (FIXME: „Długość rąk” to chyba
-trzebaby w jakiś cudzysłowie zapisać tam, gdzie się pierwszy raz pojawia)}
+przypadki nie są karane ze względu na różnicę w długości partii.
 
-% Tak samo opis funkcji oceny jak poprzednio
+% TODO: Tak samo opis funkcji oceny jak poprzednio
 
 Dodatkowo karane są te wyniki, w których ręce przekraczają barierę standardowego C:
 jeśli dzieje się to zbyt często, dźwięki te są prawdopodobnie źle sklasyfikowane,
@@ -907,8 +906,8 @@ W przykładzie z~rysunku~\ref{fig:podzial_zly} widzimy 2 dźwięki,
 \begin{math} E_5 \end{math} oraz \begin{math} F_5 \end{math} które znalazły się nie w tej
 ręce, w której powinny. Pomiędzy tymi dźwiękami, a \begin{math} C_5 \end{math} jest odpowiednio
 4 i 5 półtonów, co razem daje nam 9 punktów karnych. Dodatkowo, w~rysunku~\ref{fig:podzial_zly}
-\textcolor{red}{partia lewej ręki (na dole zapisu)
-jest o półnutę (dwie ćwierćnuty) krótsza niż partia prawej ręki}, toteż zapis ten otrzymuje
+partia lewej ręki (na dole zapisu)
+jest o półnutę (dwie ćwierćnuty) krótsza niż partia prawej ręki, toteż zapis ten otrzymuje
 dodatkowo pół punktu karnego. Zapis z~rysunku~\ref{fig:podzial_dobry} ma zatem o 9,5 punktu
 lepszy wynik, niż ten z~rysunku~\ref{fig:podzial_zly}, jest więc wybrany jako ten lepszy.
 
@@ -948,9 +947,9 @@ zawiera wybraną rozdzielczość próbkowania sygnału MIDI.
 Największą część okna programu zawierają dwa panele: po prawej stronie znajduje się miejsce na
 wygenerowany zapis utworu w formie graficznej (11). Z lewej strony zaś widnieje miejsce na
 reprezentację tegoż utworu w formacie Lilypond (9), przycisk (8) zlecający programowi odświeżenie
-widoku utworu na prawym panelu (\textcolor{red}{generowanie podglądu jest wykonywane w tym
+widoku utworu na prawym panelu (generowanie podglądu jest wykonywane w tym
 samym wątku, co interfejs programu, jednak nawet na słabszych komputerach proces ten nie trwa
-dłużej niż kilka sekund, więc nie będzie do stanowić problemu dla użytkownika}),
+dłużej niż kilka sekund, więc nie będzie do stanowić problemu dla użytkownika),
 a także, pod edytorem, interfejs dla wbudowanego mechanizmu
 \emph{Search \& Replace} (10). W polu opisanym \texttt{Pattern} umieszczamy wzorzec który będzie
 szukany, w \texttt{Replacement} zaś tekst który ma być wstawiony zamiast odnalezionych wystąpień
@@ -960,7 +959,7 @@ kod Perla modyfikujący wynik dopasowania takiego wyrażenia. Możemy zatem na p
 wszystkie liczby na dwa razy większe wprowadzając \texttt{(\textbackslash{}d+)} jako wzorzec i
 \texttt{\$1~*~2} jako tekst to wstawienia.
 
-\textcolor{red}{Ewaluowanie kodu wpisanego w programie
+Ewaluowanie kodu wpisanego w programie
 można uznać za lukę bezpieczeństwa, jednak w praktyce nie stanowi ona żadnego zagrożenia. Do
 eskalacji uprawnień mogłoby dojść jedynie wtedy, gdyby program był uruchamiany z uprawnieniami
 administratora, a wówczas zagrożenie stanowiłbym sam fakt, że program zawiera w sobie edytor
@@ -970,7 +969,7 @@ zastosowaniem „luki” byłoby wywołanie błędu w uruchamianym programie (i 
 zakresie, ponieważ wszystkie wyjątki mogące wystąpić w kodzie wpisanym z interfejsu są łapane
 i wypisywane na ekran). W połączeniu z faktem, iż program jest dystrybuowany w formie skryptu
 Perla, z kodem źródłowym dostępnym dla każdego użytkownika mającego do niego dostęp sprawia,
-że wywoływanie kodu w ten sposób nie stanowi żadnego niebezpieczeństwa.}
+że wywoływanie kodu w ten sposób nie stanowi żadnego niebezpieczeństwa.
 
 Niemal na samym dole ekranu znajduje się pole \texttt{CLI output} (12), zazwyczaj zwinięte.
 W przypadku błędów we wpisanym przez użytkownika zapisie w formacie Lilypond, bądź też
@@ -1094,9 +1093,9 @@ w utworze, możemy się ich łatwo pozbyć wykorzystując wbudowany mechanizm
 Zamieniając z jego pomocą wszystkie wystąpienia \texttt{r8} na ciąg znaków zerowej długości
 otrzymujemy wynik widoczny na~rysunku~\ref{fig:screenshot7}.
 
-\textcolor{red}{Warto zauważyć, że po usunięciu nut (czy też pauz) z utworu nie zostaje po nich
+Warto zauważyć, że po usunięciu nut (czy też pauz) z utworu nie zostaje po nich
 puste miejsce, zamiast tego kolejne nuty i pauzy są przesuwane w lewo i zajmują miejsce tych
-usuniętych.}
+usuniętych.
 
 \begin{figure}[h!]
     \centering
@@ -1177,8 +1176,8 @@ lower = {
 po kolei: a to przecież tylko krótki utwór. Wpisując go ręcznie na klawiaturze równocześnie
 grając fragmentami na klawiaturze pianina zajęłoby mnóstwo czasu, i podczas takiego procesu
 pomylilibyśmy się pewnie o wiele więcej razy, niż w powyższym przykładzie pomylił się program.
-\textcolor{red}{Błędy które wystąpiły mogliśmy również łatwo poprawić za pomocą narzędzi
-dostarczonych przez program.}
+Błędy które wystąpiły mogliśmy również łatwo poprawić za pomocą narzędzi
+dostarczonych przez program.
 
 \newpage
 
