@@ -371,8 +371,10 @@ TODO: o tonacjach.
 \newpage
 \section{Architektura projektu}
 
-Program w ogólności służy do zamieniania nagrań muzycznych w reprezentację graficzną.
-W praktyce jednak przetwarza on pliki MIDI, a produkuje tekst w formacie Lilypond
+Program w ogólności \textcolor{red}{służy do zamieniania sygnału MIDI w reprezentację
+graficzną w formie zapisu nutowego.
+W praktyce jednak przetwarza on nagrania w formie plików MIDI, a produkuje tekst w formacie
+Lilypond}
 (nazwą którego została zainspirowana nazwa programu: \emph{Lilith}). Zamianą takiego zapisu
 na reprezentację graficzną zajmuje się program GNU Lilypond, będący zewnętrzną zależnością
 projektu.
@@ -390,48 +392,77 @@ i aranżacji ręcznie, nie służy zaś do rozpoznawania arbitralnych utworów u
 przykład w radiu, toteż format MIDI jest najlepszym kompromisem między wygodą użytkownika a
 jakością efektu końcowego.
 
-Przetwarzanie samego sygnału MIDI jest realizowane za pomocą Perlowego modułu (biblioteki)
-MIDI\footnote{\url{https://metacpan.org/pod/MIDI}}. Program Lilith używa go do sprawdzenia
-poprawności pliku źródłowego oraz przetworzenie binarnych danych na strukturę danych sposobną
-do dalszego przetwarzania.
+\textcolor{red}{Wraz z programem dostarczane są dwa narzędzia skierowane do użytkownika
+końcowego. Program \texttt{lilith-gtk} implementuje wygodny interfejs użytkownika
+używając biblioteki Gtk+\footnote{\url{https://developer.gnome.org/gtk2/stable/}}. Jest on
+szczegółowo opisany w~rozdziale~\ref{sec:opis_interfejsu}. Oprócz \texttt{lilith-gtk} dostępny
+jest również konsolowy program \texttt{lilith-cli}, pozwalający nieinteraktywnie wygenerować
+plik PDF bądź plik w formacie Lilypond z zadanego pliku. Szczegółowy opis obsługi
+\texttt{lilith-cli} można uzyskać uruchamiając go z parametrem \texttt{-{}-help}.}
+
+\textcolor{red}{Do obu programów dostarczane jest nagranie w formie pliku MIDI. Interfejs
+graficzny \texttt{lilith-gtk} dostarcza wprawdzie możliwość nagrania sygnału bezpośrednio
+z urządzenia (na przykład pianina cyfrowego), jednakże nawet wtedy nagranie zapisywane
+jest do pliku w celu dalszej obróbki przez kolejne elementy programu. Nagrywanie jest realizowane
+przez zewnętrzny program \texttt{arecordmidi}. Ponieważ \texttt{arecordmidi} korzysta z systemu
+dźwięku ALSA dostępnego tylko pod Linuksem, system ten jest jedyną platformą na której dostępna
+jest ta funkcjonalność; pod innymi systemami nagranywanie sygnału z urządzenia nie będzie
+możliwe bez zmian w kodzie programu.}
+
+\textcolor{red}{Przetwarzanie samego sygnału MIDI jest realizowane za pomocą modułu (biblioteki)
+MIDI\footnote{\url{https://metacpan.org/pod/MIDI}}. Moduł ten jest również zewnętrzną zależnością
+programu Lilith. Jest używany do sprawdzenia poprawności pliku źródłowego oraz
+przetworzenie binarnych danych w nim zawartych na strukturę danych sposobną
+do dalszego przetwarzania.}
 
 Standard MIDI zawiera obsługę wielu urządzeń i efektów które nigdy nie występują podczas
 utworów granych na pianinie, więc też nie wszystkie dane przetworzone przez moduł MIDI
 są analizowane przez program. Strumień MIDI może się składać z wielu \emph{ścieżek}, z których
-każda zawiera serię \emph{zdarzeń}. W naszym przypadku interesuje nas tylko jedna ze ścieżek
-(jeden instrument), a i spośród zdarzeń będą interesować nas głównie zdarzenia wciskania oraz
+każda zawiera serię \emph{zdarzeń}. \textcolor{red}{Każda ze ścieżek zawiera sygnał
+pochodzący z jednego instrumentu, zatem w naszym przypadku interesuje nas tylko jedna ze ścieżek
+(jeden instrument)}, a i spośród zdarzeń będą interesować nas głównie zdarzenia wciskania oraz
 puszczania klawiszy: \texttt{note\_on} oraz \texttt{note\_off}. Pozostałe są potrzebne tylko do
 wyliczania indeksów czasowych: w MIDI każde zdarzenie jest umiejscowione w czasie relatywnie do
 poprzedniego, tak więc podczas przetwarzania kolejnych zdarzeń aktualny indeks czasowy jest
 uaktualniany po każdym z nich, aby być w stanie określić, w którym momencie wystąpiły wciśnięcia
-i puszczenia klawiszy. Czas jest mierzony nie w jednostkach SI, a w ilości taktów zegara z
-urządzenia źródłowego. Przełozenie tegoż na sekundy jest możliwe, jednak ze względu na
+i puszczenia klawiszy. Czas jest mierzony nie w jednostkach SI \textcolor{red}{(sekundach)},
+a w ilości taktów zegara z
+urządzenia źródłowego. Przełożenie tegoż na sekundy jest możliwe, jednak ze względu na
 fakt, iż długości dźwięków w muzyce nie mają odgórnie określonych długości, mierzenie czasu
 w sekundach jest zbędne.
 
-Cała logika programu zawarta jest w module \texttt{Lilith}, dostarczającym funkcję
+\textcolor{red}{Cała logika programu (a więc implementacja algorytmów przedstawionych
+w~rozdiale~\ref{sec:opis_algorytmu} zawarta jest w module \texttt{Lilith} -- programy
+\texttt{lilith-gtk} i \texttt{lilith-gtk} są jedynie nakładkami (\emph{frontend}),
+i same w sobie nie zawierają kodu odpowiedzialnego za przetwarzanie. Ich jedynym zadaniem
+jest zinterpretowanie zamiarów użytkownika i przekazanie pliku wejściowego do modułu
+\texttt{Lilith}. Podstawowym interfejsem tego modułu jest funkcja
 \texttt{generate}, zamieniającą ciąg zdarzeń MIDI na tekst w formacie Lilypond.
-Szczegółowy opis metody tejże zamiany jest zawarty w następnym rozdziale. Narzędziem dla
-użytkownika jest program \texttt{lilith-gtk}, który implementuje wygodny interfejs użytkownika
-używając biblioteki Gtk+\footnote{\url{https://developer.gnome.org/gtk2/stable/}} używając
-modułu texttt{Lilith} do samego przetwarzania. Dostarczony jest również interfejs konsolowy,
-\texttt{lilith-cli}, będący nieinteraktywnym narzedzięm produkującym pliki w formacie PDF
-z zadanych plików w formacie MIDI, udostępniając również wszystkie opcje konfiguracyjne jakie
-wspiera API modułu \texttt{Lilith}. Nic nie stoi również na przeszkodzie aby zaimplementować
-własny interfejs, będący na przykład aplikacją WWW.
+Szczegółowy opis metody tejże zamiany jest zawarty w~rozdziale~\ref{sec:opis_algorytmu}.
+Moduł \texttt{Lilith} można również potraktować jako samodzielną bibliotekę i wykorzystać
+ją do stworzenia własnego interfejsu, będącego na przykład aplikacją WWW. Szczegółowy opis
+API modułu \texttt{Lilith} jest dostępny w formacie
+POD\footnote{\url{http://perldoc.perl.org/perlpod.html}}, możliwym do odczytania na przykład
+za pomocą narzędzia \texttt{perldoc}. (TODO: wcale nie jest, nie ma jeszcze żadnej dokumentacji
+API)}
+
+\textcolor{red}{Wyjściem modułu \texttt{Lilith} jest zapis nutowy w formacie GNU Lilypond.
+W przypadku żądania wygenerowania dokumentu w formacie PDF używany jest zewnętrzny program
+\texttt{lilypond}, będący zależnością projektu.}
 
 Program został napisany i testowany na systemie Linux. O ile sam moduł \texttt{Lilith} nie
 korzysta z niczego, co przeszkadzałoby w uruchomieniu go na przykład na systemie Windows,
-o tyle jego interfejs w Gtk (które samo w sobie potrafi sprawić na Windows niemało problemów)
-korzysta między innymi z narzędzia \texttt{arecordmidi} pochodzącego z Linuksowego pakietu
-\texttt{alsa-utils}. Możliwym byłoby dostosowanie \texttt{lilith-gtk} (być może w pewnym tylko
-stopniu) do pracy pod Windows, nie zostało to zrealizowane w ramach tego projektu. Pod niemal
+\textcolor{red}{o tyle jego interfejs w Gtk jest w zasadzie nieprzenośny.
+Dostosowanie \texttt{lilith-gtk} do pracy pod Windows (być może w pewnym tylko
+stopniu) jest możliwe, nie zostało to jednak zrealizowane w ramach tego projektu. Pod niemal
 każdym systemem Uniksowym (Perl jest dostępny na ponad 100 różnych platform) program powinien
-działać w stu procentach bez dodatkowych zabiegów.
+działać w bez dodatkowych zabiegów (z wyjątkiem opisywanego wcześniej nagrywania przy pomocy
+\texttt{arecordmidi}}.
 
 
 \newpage
 \section{Opis algorytmu}
+\label{sec:opis_algorytmu}
 
 Opisany w niniejszym rozdzialne proces ma na celu przedstawienie w jaki
 sposób prymitywne i niskopoziomowe zdarzenia zawarte w strumieniu MIDI
@@ -840,8 +871,10 @@ Funkcja oceny jakości wyniku liczy sumaryczną długość nut w obu rękach, a 
 przyznaje punkty karne w ilości różnicy długości partii obu rąk -- idealnym
 rozwiązaniem jest wówczas to, w którym partie obu rąk mają równą długość.
 Wyjątkiem jest przypadek, gdy partia jednej z rąk ma długość zerową, co zdarza się
-w przypadku prostych utworów, takich jak opisywany wcześniej „Wlazł kotek na płotek”. Takie
-przypadki nie są karane ze względu na różnicę w długości partii.
+w przypadku prostych utworów, takich jak opisywany wcześniej „Wlazł kotek na płotek”
+-- \textcolor{red}{najlepszym wynikiem jest wówczas ten, kiedy algorytm dobierze taki
+podzielnik rąk, że wszystkie nuty w utworze zostaną przydzielone do jednej ręki.
+Przypadki takie nie są karane ze względu na różnicę w długości partii.}
 
 % TODO: Tak samo opis funkcji oceny jak poprzednio
 
@@ -916,6 +949,7 @@ lepszy wynik, niż ten z~rysunku~\ref{fig:podzial_zly}, jest więc wybrany jako 
 \subsection{Dynamika}
 
 \section{Opis interfejsu i obsługi programu}
+\label{sec:opis_interfejsu}
 
 W poniższym rozdziale opisany zostanie interfejs programu oraz zostaną przedstawione
 dwa przykłady konwersji utworów na zapisy nutowe.
@@ -966,8 +1000,9 @@ administratora, a wówczas zagrożenie stanowiłbym sam fakt, że program zawier
 tekstu mogący otwierać i zapisywać pliki, co użytkownik mógłby wykorzystać na przykład w celu
 podmiany plików systemowych. Przy prawidłowo skonfigurowanym systemie jednak jedynym
 zastosowaniem „luki” byłoby wywołanie błędu w uruchamianym programie (i to też w ograniczonym
-zakresie, ponieważ wszystkie wyjątki mogące wystąpić w kodzie wpisanym z interfejsu są łapane
-i wypisywane na ekran). W połączeniu z faktem, iż program jest dystrybuowany w formie skryptu
+zakresie, ponieważ wszystkie \textcolor{red}{wyjątki mogące wystąpić w kodzie wpisanym z
+interfejsu są obsługiwane, a komunikaty o błędach są wypisywane na ekran (w ramce
+\texttt{CLI Output}}. W połączeniu z faktem, iż program jest dystrybuowany w formie skryptu
 Perla, z kodem źródłowym dostępnym dla każdego użytkownika mającego do niego dostęp sprawia,
 że wywoływanie kodu w ten sposób nie stanowi żadnego niebezpieczeństwa.
 
