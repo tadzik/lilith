@@ -609,7 +609,7 @@ sub parse_hand_divisor {
         $res = $MIDI::note2number{$div}
     }
     LOGN "Hand divisor parsed as $res";
-    return $res or die "Unable to parse hand divisor: $div";
+    return $res || die "Unable to parse hand divisor: $div";
 }
 
 sub format_hand_divisor {
