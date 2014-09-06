@@ -15,7 +15,120 @@
 \maketitle
 
 \newpage
+\tableofcontents
+
+\newpage
+\section{Abstrakt}
+
+Niniejsza praca opisuje cele, założenia i implementację programu dokonującego automatycznej
+konwersji nagrań muzycznych w formacie MIDI do arkuszy nutowych w formatach PNG lub PDF.
+Założenia i cel projektu są opisane w rozdziale~\ref{sec:wstep}. Opisuje on dla kogo jest
+tworzony program, jaki jest oczekiwany rezultat jak również porównuje projekt z innymi
+dostępnymi na rynku rozwiązaniami tego typu.
+
+Rozdział \ref{sec:o_nutach} zawiera krótkie wprowadzenie do teorii muzyki oraz zapisu nutowego,
+znajomość której jest konieczna w celu zaznajomienia się z terminologią i problematyką
+dalszych rozdziałów pracy.
+
+W rozdziale \ref{sec:architektura} znajduje się szczegółowy opis komponentów na jakie
+podzielony jest projekt Lilith. Opisane są zależności oraz szczegóły techniczne implementacji
+poszczególnych części projektu.
+
+Rozdział \ref{sec:opis_algorytmu} zawiera szczegółowy opis metod statystycznych
+i~heurystycznych oraz dokładny opis algorytmów którymi posługuje się program w celu
+wygenerowania dobrej jakości zapisu nutowego. Wyjaśnia również, na podstawie jakich kryteriów
+decydujemy jaki zapis jest akceptowalny.
+
+Opis interfejsu programu, będący swego rodzaju dokumentacją dla użytkownika znajduje się
+w~rozdziale~\ref{sec:opis_interfejsu}. Opisane jest w nim dokładnie jak posługiwać się
+programem, zawiera również przykłady użycia dla kilku utworów oraz pokazuje sposób radzenia
+sobie z ewentualnymi niedoskonałościami wygenerowanego arkusza.
+
+W rozdziale \ref{sec:podsumowanie} znajduje się podsumowanie projektu, wnioski oraz
+ocena spełnienia wymagań postawionych przed projektem.
+
+Wreszcie rozdział \ref{sec:bibliografia} jest bibliografią pracy, zawierającą odnośniki
+do prac, książek i materiałów które pomogły w realizacji projektu i opisaniu go w niniejszej
+pracy.
+
+\newpage
+\section{Wstęp}
+\label{sec:wstep}
+
+\subsection{Cel pracy}
+
+Praca ma na celu stworzenie programu generującego zapis nutowy z nagrania utworu wykonanego
+na instrumencie klawiszowym.
+
+\subsection{Grupa odbiorcza i zastosowania}
+
+Program ma służyć przede wszystkim muzykom, artystom chcącym uniknąć żmudnego zapisywania
+nut czy to na papierze czy na klawiaturze komputera. Przerywanie wykonania co kilka chwil
+jest niewygodne, rozpraszające i czasochłonne. Wielu artystów publikujących swoje nagrania
+w internecie bardzo często nie dołącza do nich arkuszy muzycznych właśnie ze względu na
+pracochłonność takiego procesu, czasem wyceniając ich przygotowanie na kilkadziesiąt
+euro\footnote{\url{http://vkgoeswild.com/?section=sheets}} (niemal połowa ceny zaaranżowania
+dowolnego utworu).
+
+Klawiatura instrumentu, będąc również narzędziem do wykonania utworu jest najbardziej
+naturalnym dla artysty urządzeniem mogącym ułatwić im przygotowanie arkusza. Praca ma zatem na
+celu dostarczenie programu, który przejmie na siebie obowiązek wykonania za człowieka jak
+największej części pracy (docelowo całości), jaką trzeba włożyć w przygotowanie arkusza
+muzycznego.
+
+\subsection{Trudności i ograniczenia}
+
+Rzeczą nie do końca oczywistą a bardzo istotną jest fakt, że zadaniem programu nie jest
+zreprodukowanie muzyki w innym nieco formacie -- zadaniem programu jest zobrazowanie
+działań wykonawcy utworu w taki sposób, aby innym muzykom było łatwo go odtworzyć.
+Każdy utwór muzyczny można zapisać na arkuszu nutowym na nieskończoną ilość sposobów;
+zadaniem programu jest wybranie heurystycznie takiego, który będzie jak najbardziej
+przejrzysty dla człowieka. Bardziej niz mechaniczna precyzja istotne będzie branie poprawki
+na niedokładność ludzkiego wykonania, ale również wnioskowanie rzeczy nie będących w żaden
+sposób zapisanych w nagraniu dźwiękowym: na przykład, którą ręką był prawdopodobnie grany
+zadany klawisz?
+
+Efektem heurystycznego interpretowania zamiarów użytkownika jest również fakt, iż nie zawsze
+będziemy w stanie trafnie odgadnąć jego zamiary; mimo najlepszych starań i algorytmów oceny,
+wynik nie zawsze będzie satysfakcjonujący. Drugim zadaniem programu jest zatem udostępnienie
+wygodnej możliwości dopasowania dobranych przezeń parametrów w celu skorygowania błędnych
+założeń programu, jak również danie użytkownikowi możliwości łatwego poprawienia popełnionych
+przez niego błędów w samym wykonaniu utworu.
+
+\subsection{Obecne rozwiązania}
+
+Na rynku nie istnieją w zasadzie programy umożliwiające konwersję całych, gotowych utworów
+na zapis nutowy. Istnieją profesjonalne edytory arkuszy muzycznych (takie jak
+Finale\footnote{\url{http://www.finalemusic.com/}} czy
+Sibelius\footnote{\url{http://www.avid.com/US/products/sibelius}}, które dają możliwość
+nagrywania pojedyńczych dźwięków bądź krótkich monofonicznych melodii, trudno jednak mówić
+o automatycznej konwersji kompletnych, złożonych utworów.
+Cena 600 dolarów za licencję każdego z tych
+programów umieszcza je również poza zasięgiem amatorów i pasjonatów muzyki pragnących
+podzielić się ze światem swoją twórczością. Program napisany w ramach tej pracy jest, jak się
+okazuje, jedynym które podejmuje problem konwersji kompletnych utworów na gotowe arkusze
+muzyczne.
+
+\subsection{Oczekiwane rezultaty}
+
+Celem projektu jest zrzucenie możliwie jak największej ilości mozolnej, podatnej na błędy pracy
+na barki komputera. Część rzeczy, takie jak wysokości poszczególnych dźwięków w utworze
+program będzie w stanie wyznaczyć bezbłędnie. Inne, jak ich długość czy grupowanie w akordy
+moze sprawić więcej kłopotów: niedokładność wykonania i kompensowanie błędów użytkownika
+może doprowadzić do drobnych różnic między zamierzoną a wyznaczoną długością poszczególnych nut.
+Wreszcie podział utworu na ręce jest zadaniem skomplikowanym i potencjalnie sprawiającym dużo
+problemów w skrajnych przypadkach, mogącym doprowadzić do bardzo niespodziewanych wyników.
+Wiele z tych trudności da się przezwyciężyć lub skorygować, jednak niemal nigdy nie uda się
+perfekcyjnie wygenerować arkusza niewymagającego żadnych poprawek. Program musi zatem dostarczać
+łatwą i wygodną możliwość skorygowania błędów wynikłych ze złej interpretacji utworu.
+
+Projekt można uznać za udany i użyteczny, jeśli faktycznie łatwiej będzie tworzyć arkusze
+muzyczne z jego pomocą niż pisać je ręcznie od zera. Im większą część pracy uda się przenieść
+na program, tym większa jego użyteczność.
+
+\newpage
 \section{Wprowadzenie do zapisu nutowego}
+\label{sec:o_nutach}
 
 Poniższy rozdział ma na celu wyjaśnienie podstawowych pojęć muzycznych,
 na których operować będzie dalsza część pracy. Wyjaśni też, jakie trudności
@@ -370,11 +483,12 @@ TODO: o tonacjach.
 
 \newpage
 \section{Architektura projektu}
+\label{sec:architektura}
 
-Program w ogólności \textcolor{red}{służy do zamieniania sygnału MIDI w reprezentację
+Program w ogólności służy do zamieniania sygnału MIDI w reprezentację
 graficzną w formie zapisu nutowego.
 W praktyce jednak przetwarza on nagrania w formie plików MIDI, a produkuje tekst w formacie
-Lilypond}
+Lilypond
 (nazwą którego została zainspirowana nazwa programu: \emph{Lilith}). Zamianą takiego zapisu
 na reprezentację graficzną zajmuje się program GNU Lilypond, będący zewnętrzną zależnością
 projektu.
@@ -392,46 +506,46 @@ i aranżacji ręcznie, nie służy zaś do rozpoznawania arbitralnych utworów u
 przykład w radiu, toteż format MIDI jest najlepszym kompromisem między wygodą użytkownika a
 jakością efektu końcowego.
 
-\textcolor{red}{Wraz z programem dostarczane są dwa narzędzia skierowane do użytkownika
+Wraz z programem dostarczane są dwa narzędzia skierowane do użytkownika
 końcowego. Program \texttt{lilith-gtk} implementuje wygodny interfejs użytkownika
 używając biblioteki Gtk+\footnote{\url{https://developer.gnome.org/gtk2/stable/}}. Jest on
 szczegółowo opisany w~rozdziale~\ref{sec:opis_interfejsu}. Oprócz \texttt{lilith-gtk} dostępny
 jest również konsolowy program \texttt{lilith-cli}, pozwalający nieinteraktywnie wygenerować
 plik PDF bądź plik w formacie Lilypond z zadanego pliku. Szczegółowy opis obsługi
-\texttt{lilith-cli} można uzyskać uruchamiając go z parametrem \texttt{-{}-help}.}
+\texttt{lilith-cli} można uzyskać uruchamiając go z parametrem \texttt{-{}-help}.
 
-\textcolor{red}{Do obu programów dostarczane jest nagranie w formie pliku MIDI. Interfejs
+Do obu programów dostarczane jest nagranie w formie pliku MIDI. Interfejs
 graficzny \texttt{lilith-gtk} dostarcza wprawdzie możliwość nagrania sygnału bezpośrednio
 z urządzenia (na przykład pianina cyfrowego), jednakże nawet wtedy nagranie zapisywane
 jest do pliku w celu dalszej obróbki przez kolejne elementy programu. Nagrywanie jest realizowane
 przez zewnętrzny program \texttt{arecordmidi}. Ponieważ \texttt{arecordmidi} korzysta z systemu
 dźwięku ALSA dostępnego tylko pod Linuksem, system ten jest jedyną platformą na której dostępna
 jest ta funkcjonalność; pod innymi systemami nagranywanie sygnału z urządzenia nie będzie
-możliwe bez zmian w kodzie programu.}
+możliwe bez zmian w kodzie programu.
 
-\textcolor{red}{Przetwarzanie samego sygnału MIDI jest realizowane za pomocą modułu (biblioteki)
+Przetwarzanie samego sygnału MIDI jest realizowane za pomocą modułu (biblioteki)
 MIDI\footnote{\url{https://metacpan.org/pod/MIDI}}. Moduł ten jest również zewnętrzną zależnością
 programu Lilith. Jest używany do sprawdzenia poprawności pliku źródłowego oraz
 przetworzenie binarnych danych w nim zawartych na strukturę danych sposobną
-do dalszego przetwarzania.}
+do dalszego przetwarzania.
 
 Standard MIDI zawiera obsługę wielu urządzeń i efektów które nigdy nie występują podczas
 utworów granych na pianinie, więc też nie wszystkie dane przetworzone przez moduł MIDI
 są analizowane przez program. Strumień MIDI może się składać z wielu \emph{ścieżek}, z których
-każda zawiera serię \emph{zdarzeń}. \textcolor{red}{Każda ze ścieżek zawiera sygnał
+każda zawiera serię \emph{zdarzeń}. Każda ze ścieżek zawiera sygnał
 pochodzący z jednego instrumentu, zatem w naszym przypadku interesuje nas tylko jedna ze ścieżek
-(jeden instrument)}, a i spośród zdarzeń będą interesować nas głównie zdarzenia wciskania oraz
+(jeden instrument), a i spośród zdarzeń będą interesować nas głównie zdarzenia wciskania oraz
 puszczania klawiszy: \texttt{note\_on} oraz \texttt{note\_off}. Pozostałe są potrzebne tylko do
 wyliczania indeksów czasowych: w MIDI każde zdarzenie jest umiejscowione w czasie relatywnie do
 poprzedniego, tak więc podczas przetwarzania kolejnych zdarzeń aktualny indeks czasowy jest
 uaktualniany po każdym z nich, aby być w stanie określić, w którym momencie wystąpiły wciśnięcia
-i puszczenia klawiszy. Czas jest mierzony nie w jednostkach SI \textcolor{red}{(sekundach)},
+i puszczenia klawiszy. Czas jest mierzony nie w jednostkach SI (sekundach),
 a w ilości taktów zegara z
 urządzenia źródłowego. Przełożenie tegoż na sekundy jest możliwe, jednak ze względu na
 fakt, iż długości dźwięków w muzyce nie mają odgórnie określonych długości, mierzenie czasu
 w sekundach jest zbędne.
 
-\textcolor{red}{Cała logika programu (a więc implementacja algorytmów przedstawionych
+Cała logika programu (a więc implementacja algorytmów przedstawionych
 w~rozdiale~\ref{sec:opis_algorytmu} zawarta jest w module \texttt{Lilith} -- programy
 \texttt{lilith-gtk} i \texttt{lilith-gtk} są jedynie nakładkami (\emph{frontend}),
 i same w sobie nie zawierają kodu odpowiedzialnego za przetwarzanie. Ich jedynym zadaniem
@@ -444,20 +558,20 @@ ją do stworzenia własnego interfejsu, będącego na przykład aplikacją WWW. 
 API modułu \texttt{Lilith} jest dostępny w formacie
 POD\footnote{\url{http://perldoc.perl.org/perlpod.html}}, możliwym do odczytania na przykład
 za pomocą narzędzia \texttt{perldoc}. (TODO: wcale nie jest, nie ma jeszcze żadnej dokumentacji
-API)}
+API)
 
-\textcolor{red}{Wyjściem modułu \texttt{Lilith} jest zapis nutowy w formacie GNU Lilypond.
+Wyjściem modułu \texttt{Lilith} jest zapis nutowy w formacie GNU Lilypond.
 W przypadku żądania wygenerowania dokumentu w formacie PDF używany jest zewnętrzny program
-\texttt{lilypond}, będący zależnością projektu.}
+\texttt{lilypond}, będący zależnością projektu.
 
 Program został napisany i testowany na systemie Linux. O ile sam moduł \texttt{Lilith} nie
 korzysta z niczego, co przeszkadzałoby w uruchomieniu go na przykład na systemie Windows,
-\textcolor{red}{o tyle jego interfejs w Gtk jest w zasadzie nieprzenośny.
+o tyle jego interfejs w Gtk jest w zasadzie nieprzenośny.
 Dostosowanie \texttt{lilith-gtk} do pracy pod Windows (być może w pewnym tylko
 stopniu) jest możliwe, nie zostało to jednak zrealizowane w ramach tego projektu. Pod niemal
 każdym systemem Uniksowym (Perl jest dostępny na ponad 100 różnych platform) program powinien
 działać w bez dodatkowych zabiegów (z wyjątkiem opisywanego wcześniej nagrywania przy pomocy
-\texttt{arecordmidi}}.
+\texttt{arecordmidi}.
 
 
 \newpage
@@ -872,9 +986,9 @@ przyznaje punkty karne w ilości różnicy długości partii obu rąk -- idealny
 rozwiązaniem jest wówczas to, w którym partie obu rąk mają równą długość.
 Wyjątkiem jest przypadek, gdy partia jednej z rąk ma długość zerową, co zdarza się
 w przypadku prostych utworów, takich jak opisywany wcześniej „Wlazł kotek na płotek”
--- \textcolor{red}{najlepszym wynikiem jest wówczas ten, kiedy algorytm dobierze taki
+-- najlepszym wynikiem jest wówczas ten, kiedy algorytm dobierze taki
 podzielnik rąk, że wszystkie nuty w utworze zostaną przydzielone do jednej ręki.
-Przypadki takie nie są karane ze względu na różnicę w długości partii.}
+Przypadki takie nie są karane ze względu na różnicę w długości partii.
 
 % TODO: Tak samo opis funkcji oceny jak poprzednio
 
@@ -1000,9 +1114,9 @@ administratora, a wówczas zagrożenie stanowiłbym sam fakt, że program zawier
 tekstu mogący otwierać i zapisywać pliki, co użytkownik mógłby wykorzystać na przykład w celu
 podmiany plików systemowych. Przy prawidłowo skonfigurowanym systemie jednak jedynym
 zastosowaniem „luki” byłoby wywołanie błędu w uruchamianym programie (i to też w ograniczonym
-zakresie, ponieważ wszystkie \textcolor{red}{wyjątki mogące wystąpić w kodzie wpisanym z
+zakresie, ponieważ wszystkie wyjątki mogące wystąpić w kodzie wpisanym z
 interfejsu są obsługiwane, a komunikaty o błędach są wypisywane na ekran (w ramce
-\texttt{CLI Output}}. W połączeniu z faktem, iż program jest dystrybuowany w formie skryptu
+\texttt{CLI Output}). W połączeniu z faktem, iż program jest dystrybuowany w formie skryptu
 Perla, z kodem źródłowym dostępnym dla każdego użytkownika mającego do niego dostęp sprawia,
 że wywoływanie kodu w ten sposób nie stanowi żadnego niebezpieczeństwa.
 
@@ -1215,8 +1329,21 @@ Błędy które wystąpiły mogliśmy również łatwo poprawić za pomocą narz�
 dostarczonych przez program.
 
 \newpage
+\section{Podsumowanie}
+\label{sec:podsumowanie}
 
+Celem pracy było zaimplementowanie programu, który ułatwi pracę muzykom; programu który
+możliwie jak największą część, a być może całość, mozolnej i podatnej na błędy pracy
+polegającej na żmudnym przepisywaniu nut do komputera przeniesie na barki maszyny.
+Przykład z poprzedniego rozdziału pokazuje, że cel ten został osiągnięty: program Lilith
+jest w stanie wykonać niemal całą pracę za użytkownika, pozostawiając do poprawki jedynie
+drobne potknięcia czy to algorytmu, czy też wykonawcy utworu. Otrzymaliśmy solidne, użyteczne
+i łatwe w obsłudze narzędzie, oferujące dużo więcej niż komercyjne oprogramowanie dostępne
+na rynku.
+
+\newpage
 \section{Bibliografia}
+\label{sec:bibliografia}
 
 \begin{enumerate}
 \item Opis formatu Lilypond: \url{http://lilypond.org/doc/v2.18/Documentation/learning-big-page.html}
