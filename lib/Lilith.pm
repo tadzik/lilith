@@ -7,6 +7,40 @@ use File::Temp 'tempfile';
 use Data::Dumper;
 use Carp::Always;
 
+=head1 NAME
+
+Lilith -- generate lilypond documents from MIDI
+
+=head1 VERSION
+
+0.01
+
+=cut
+
+our $VERSION = '0.01';
+
+=head1 SYNOPSIS
+
+    use MIDI;
+    use Lilith;
+
+    my $o = MIDI::Opus->new({ from_file => 'song.mid' });
+    my $track = ($o->tracks)[0];
+
+    my $lilypond = Lilith::generate({}, $track->events);
+    # or
+    my $lilypond = Lilith::generate({ tempo => '3/4', key => 'G' }, $track->events);
+
+=head1 DESCRIPTION
+
+This module automatically generates music sheets from MIDI streams. Given a list of MIDI
+events (it was developed for and tested with the MIDI module from CPAN, but anything using
+the same data structures would work too) and an optional set of hints it generates a
+Lilypond document representing a pretty accurate approximation of the MIDI recording.
+It can also generate a PDF, using system installed lilypond.
+
+=cut
+
 our $LILYPOND_VERSION = '\\version "2.16.2"';
 
 # fun fact: it's not really a mean =)
@@ -623,6 +657,55 @@ sub format_hand_divisor {
     return $1 . ("," x (4 - $2))
 }
 
+=head1 PUBLIC FUNCTIONS
+
+=head2 C<generate($opts, @events)>
+
+Generates a lilypond document from the provided C<@events>. C<$opts> hashref can either
+be empty or contain any of the following hints to the analyzer:
+
+=over 4
+
+=item C<key> -- a key in which the piece is played
+
+When not provided, key will be deduced automatically (usually correctly). Example values:
+C, C#, Gb, Am.
+
+=item C<tempo> -- a tempo in which the piece is played
+
+When not provided, tempo will be deduced automatically. Example values: 3/4, 2/8.
+
+=item C<hand_divisor> -- the centerpoint between left and right hand
+
+When not provided, Lilith will try to come up with a way to divide the notes
+between the left and the right hand. If provided, every note lower (exclusively)
+than C<hand_divisor> will be a left hand note, while the higher or equal notes will go the
+right hand.
+
+C<hand_divisor> can either be a key index (as per MIDI module), a note in Lilypond notation
+(like C<c,> or C<a''>) or in the usual format of C#, Ab etc.
+
+=item C<hand_division> -- a hand division algorithm.
+
+Can be either C<simple> or C<tracing>. When none is provided, the one producing the
+subjectively better result will be used. Note that C<hand_divisor> option is only in
+effect if the simple is used.
+
+=item C<resolution> -- the note polling resolution
+
+Resolution is the number of ticks determining how often the analyzer will check what keys
+are being pressed at a specific moment in time. The name is a bit unfortunate, since the
+lower the C<resolution> value the more often the notes will be polled. If not provided
+the analyzer will deduce a resolution that produces the subjectively best result.
+
+=back
+
+When called in list context, C<generate()> will return the lilypond string, and also a
+hashref of filled in C<$opts>, as specified above. All the deduced vaules will be stored
+there for inspection and possible modification.
+
+=cut
+
 sub generate {
     my ($opts, @events) = @_;
     my $key = $opts->{key} // Lilith::KeyGuesser::guess(@events)->[0];
@@ -640,6 +723,18 @@ sub generate {
     return $lilypond;
 }
 
+=head2 C<generate_pdf($filename, $opts, @events)>
+
+A wrapper around C<generate()> that produces a PDF file rendered with C<lilypond> instead
+(or in addition to) the lilypond source. The first argument is the desired filename of the
+PDF file.
+
+C<$opts>, in addition to what's used by C<generate()> also takes an optional C<keep> argument
+in C<generate_pdf()> which, when true, will preserve the temporary .ly file from which the
+PDF is generated.
+
+=cut
+
 sub generate_pdf {
     my ($pdffile, $opts) = (shift, shift);
     my $contents = generate($opts, @_);
@@ -654,5 +749,14 @@ sub generate_pdf {
         unlink $filename
     }
 }
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2014 Tadeusz Sośnierz, all rights reserved.
+
+This program is licensed under the GNU General Public License version 2, the terms of which
+are provided in the LICENSE file distributed with the program.
+
+=cut
 
 1;

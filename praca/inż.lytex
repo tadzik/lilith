@@ -27,7 +27,7 @@ tworzony program, jaki jest oczekiwany rezultat jak również porównuje projekt
 dostępnymi na rynku rozwiązaniami tego typu.
 
 Rozdział \ref{sec:o_nutach} zawiera krótkie wprowadzenie do teorii muzyki oraz zapisu nutowego,
-znajomość której jest konieczna w celu zaznajomienia się z terminologią i problematyką
+która jest konieczna w celu zaznajomienia się z terminologią i problematyką
 dalszych rozdziałów pracy.
 
 W rozdziale \ref{sec:architektura} znajduje się szczegółowy opis komponentów na jakie
@@ -57,8 +57,8 @@ pracy.
 
 \subsection{Cel pracy}
 
-Praca ma na celu stworzenie programu generującego zapis nutowy z nagrania utworu wykonanego
-na instrumencie klawiszowym.
+Praca ma na celu stworzenie programu generującego zapis nutowy z nagrania MIDI utworu
+wykonanego na instrumencie klawiszowym.
 
 \subsection{Grupa odbiorcza i zastosowania}
 
@@ -81,12 +81,14 @@ muzycznego.
 Rzeczą nie do końca oczywistą a bardzo istotną jest fakt, że zadaniem programu nie jest
 zreprodukowanie muzyki w innym nieco formacie -- zadaniem programu jest zobrazowanie
 działań wykonawcy utworu w taki sposób, aby innym muzykom było łatwo go odtworzyć.
-Każdy utwór muzyczny można zapisać na arkuszu nutowym na nieskończoną ilość sposobów;
+\textcolor{red}{Podobnie jak każdy program można zapisać w języku programowania na wiele
+sposobów, z których każdy da ten sam rezultat, również utwory muzyczne można wyrażać różnymi
+arkuszami nutowymi, których wykonanie będzie brzmiało tak samo};
 zadaniem programu jest wybranie heurystycznie takiego, który będzie jak najbardziej
-przejrzysty dla człowieka. Bardziej niz mechaniczna precyzja istotne będzie branie poprawki
+przejrzysty dla człowieka. Bardziej niż mechaniczna precyzja istotne będzie branie poprawki
 na niedokładność ludzkiego wykonania, ale również wnioskowanie rzeczy nie będących w żaden
 sposób zapisanych w nagraniu dźwiękowym: na przykład, którą ręką był prawdopodobnie grany
-zadany klawisz?
+zadany klawisz.
 
 Efektem heurystycznego interpretowania zamiarów użytkownika jest również fakt, iż nie zawsze
 będziemy w stanie trafnie odgadnąć jego zamiary; mimo najlepszych starań i algorytmów oceny,
@@ -116,7 +118,7 @@ na barki komputera. Część rzeczy, takie jak wysokości poszczególnych dźwi�
 program będzie w stanie wyznaczyć bezbłędnie. Inne, jak ich długość czy grupowanie w akordy
 moze sprawić więcej kłopotów: niedokładność wykonania i kompensowanie błędów użytkownika
 może doprowadzić do drobnych różnic między zamierzoną a wyznaczoną długością poszczególnych nut.
-Wreszcie podział utworu na ręce jest zadaniem skomplikowanym i potencjalnie sprawiającym dużo
+Wreszcie podział utworu na partie jest zadaniem skomplikowanym i potencjalnie sprawiającym dużo
 problemów w skrajnych przypadkach, mogącym doprowadzić do bardzo niespodziewanych wyników.
 Wiele z tych trudności da się przezwyciężyć lub skorygować, jednak niemal nigdy nie uda się
 perfekcyjnie wygenerować arkusza niewymagającego żadnych poprawek. Program musi zatem dostarczać
@@ -401,7 +403,7 @@ do końca.
 
 Może się również zdarzyć, iż obie ręce będą zapisane w kluczu wiolinowym
 (bądź basowym). Występuje to jednak bardzo rzadko, i program nie obsługuje takiego przypadku,
-ponieważ w praktyce niezwykle trudne okazałoby się dzielenie na ręce utworu, w którym znajdują
+ponieważ w praktyce niezwykle trudne okazałoby się dzielenie na partie utworu, w którym znajdują
 się one bardzo blisko siebie czy nawet zachodzą jedna na drugą. Udostępiona jest jednak możliwość
 ręcznej zmiany kluczy w edytorze, co po ręcznym ustawieniu podzielinka rąk umożliwi wygenerowanie
 poprawnego arkusza nawet dla tak wyszukanego przypadku.
@@ -546,8 +548,8 @@ fakt, iż długości dźwięków w muzyce nie mają odgórnie określonych dług
 w sekundach jest zbędne.
 
 Cała logika programu (a więc implementacja algorytmów przedstawionych
-w~rozdiale~\ref{sec:opis_algorytmu} zawarta jest w module \texttt{Lilith} -- programy
-\texttt{lilith-gtk} i \texttt{lilith-gtk} są jedynie nakładkami (\emph{frontend}),
+w~rozdziale~\ref{sec:opis_algorytmu} zawarta jest w module \texttt{Lilith} -- programy
+\texttt{lilith-gtk} i \texttt{lilith-gui} są jedynie nakładkami (\emph{frontend}),
 i same w sobie nie zawierają kodu odpowiedzialnego za przetwarzanie. Ich jedynym zadaniem
 jest zinterpretowanie zamiarów użytkownika i przekazanie pliku wejściowego do modułu
 \texttt{Lilith}. Podstawowym interfejsem tego modułu jest funkcja
@@ -571,7 +573,7 @@ Dostosowanie \texttt{lilith-gtk} do pracy pod Windows (być może w pewnym tylko
 stopniu) jest możliwe, nie zostało to jednak zrealizowane w ramach tego projektu. Pod niemal
 każdym systemem Uniksowym (Perl jest dostępny na ponad 100 różnych platform) program powinien
 działać w bez dodatkowych zabiegów (z wyjątkiem opisywanego wcześniej nagrywania przy pomocy
-\texttt{arecordmidi}.
+\texttt{arecordmidi}).
 
 
 \newpage
@@ -925,7 +927,7 @@ Po zastosowaniu powyższych kroków i wybraniu najlepiej w oczach funkcji oceny
 wyglądającego wyniku otrzymujemy zapis nutowy będący bardzo dobrym
 odzwierciedleniem nagranego utworu.
 
-\subsection{Podział na ręce}
+\subsection{Podział na partie}
 
 \begin{figure}[h!]
     \centering
@@ -954,8 +956,8 @@ odzwierciedleniem nagranego utworu.
 \end{figure}
 
 Jako że utwory na fortepianie grane są (niemal zawsze) dwiema rękami, dla
-wygody wykonawcy każda ręka zapisana jest na arkuszu nutowym oddzielnie. Obie
-„ręce” grane są równocześnie, toteż i dźwięki zapisane w MIDI nakładają się na
+wygody wykonawcy każda ręka zapisana jest na arkuszu nutowym oddzielnie. Partie
+obu rąk grane są równocześnie, toteż i dźwięki zapisane w MIDI nakładają się na
 siebie niezależnie od tego, z której ręki pochodzą
 (informacja nie jest zawarta w strumieniu MIDI). Jak zatem podzielić otrzymany
 ciąg dźwięków na partię lewej i prawej ręki? Program robi to na dwa sposoby
@@ -963,7 +965,7 @@ spośród których heurystycznie wybiera ten wyglądający lepiej.
 
 Pierwsza metoda, nazwana metodą „prostą”, dobiera jeden z klawiszy jako
 podzielnik (np. standardowe C), a następnie wszystkie dźwięki poniżej tegoż
-zapisuje prawej ręce, z pozostałe lewej (pauzy trafiają do obu rąk równocześnie).
+zapisuje prawej ręce, a pozostałe lewej (pauzy trafiają do obu rąk równocześnie).
 Podzielnik jest, podobnie jak w przypadku rozdzielczości przy wyznaczaniu długości
 nut, dobierany wielokrotnie, aby następnie w wyników cząstkowych na podstawie
 funkcji oceny wybrać ten najlepszy.
