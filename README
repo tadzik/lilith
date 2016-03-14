@@ -1,0 +1,5 @@
+This is my BSc project which takes MIDI files (or records straight from a MIDI device)
+and turns it into the best music sheet it can. Now is as good time as ever to opensource
+it. License is http://www.gnu.org/licenses/gpl-3.0.en.html
+
+I plan to do some further developments on it in near future. Famous last words.
